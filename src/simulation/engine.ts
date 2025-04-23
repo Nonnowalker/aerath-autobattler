@@ -1,13 +1,31 @@
 // src/simulation/engine.ts
 import { StatoPartita, Carta, StatoGiocatore, UnitaInGioco } from './types';
 
+// --- NUOVA FUNZIONE SHUFFLE (Fisher-Yates Algorithm) ---
+function shuffleArray<T>(array: T[]): T[] {
+  const newArray = [...array]; // Lavora su una copia per non mutare l'originale inaspettatamente
+  for (let i = newArray.length - 1; i > 0; i--) {
+      // Scegli un indice casuale tra 0 e i (inclusi)
+      const j = Math.floor(Math.random() * (i + 1));
+      // Scambia l'elemento corrente (i) con l'elemento all'indice casuale (j)
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+// --- FINE NUOVA FUNZIONE SHUFFLE ---
+
 const HP_INIZIALI_BASE = 20;
 const MAX_TICKS = 100; // Limite per evitare loop infiniti
 
 export function simulaPartita(mazzoInputG1: Carta[], mazzoInputG2: Carta[]): StatoPartita {
   // Creiamo copie dei mazzi per non modificare gli originali
-  const mazzoG1 = [...mazzoInputG1];
-  const mazzoG2 = [...mazzoInputG2];
+  let mazzoG1 = [...mazzoInputG1];
+  let mazzoG2 = [...mazzoInputG2];
+
+  // ----- MISCHIA I MAZZI PRIMA DELLA SIMULAZIONE! -----
+  mazzoG1 = shuffleArray(mazzoG1);
+  mazzoG2 = shuffleArray(mazzoG2);
+  // ----------------------------------------------------
 
   // Inizializza lo stato della partita
   const statoIniziale: StatoPartita = {
@@ -25,6 +43,7 @@ export function simulaPartita(mazzoInputG1: Carta[], mazzoInputG2: Carta[]): Sta
 
   // Copia profonda dello stato per modificarlo durante la simulazione
   const stato: StatoPartita = JSON.parse(JSON.stringify(statoIniziale));
+  stato.log.unshift("--- Mazzi Mischiati ---"); // Aggiungi un messaggio al log
 
   // ----- CICLO PRINCIPALE DELLA SIMULAZIONE -----
   while (!stato.gameOver && stato.tickAttuale < MAX_TICKS) {
@@ -74,7 +93,7 @@ export function simulaPartita(mazzoInputG1: Carta[], mazzoInputG2: Carta[]): Sta
         const giocatoreAvversario = stato.giocatori.find(g => g.id === idAvversario)!;
 
         // Trova un bersaglio: prima unità nemica sul campo, altrimenti la base
-        let targetUnita: UnitaInGioco | undefined = stato.campoBattaglia.find(
+        const targetUnita: UnitaInGioco | undefined = stato.campoBattaglia.find(
             u => u.idGiocatore === idAvversario && u.vitaAttuale > 0
         );
 
