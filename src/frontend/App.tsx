@@ -4,7 +4,7 @@ import CombatLogDisplay from './components/CombatLogDisplay';
 import { simulaPartita, StatoPartita } from '../simulation'; // Importa dalla cartella giusta
 import { Carta } from '../simulation/types'; // Importa anche Carta
 import { getCartaById } from '../simulation/data/cards'; // Importa carte e helper
-import './styles/main.scss';
+import './App.css';
 
 // Helper per creare mazzi di esempio (mettilo fuori dal componente o in un file helpers)
 function creaMazzo(idsCarte: string[]): Carta[] {
