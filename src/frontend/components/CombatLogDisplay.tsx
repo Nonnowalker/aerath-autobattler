@@ -26,17 +26,6 @@ const CombatLogDisplay: React.FC<CombatLogDisplayProps> = ({ logEntries }) => {
       // Leggerà le nuove entry man mano che vengono aggiunte
       aria-live="polite"
       aria-atomic="false" // Legge solo le nuove aggiunte (di solito preferibile a true)
-      style={{ // Questi stili dovrebbero idealmente andare in main.scss
-          border: '1px solid #ccc',
-          height: '400px', // Aumentata leggermente l'altezza
-          overflowY: 'scroll', // Abilita lo scroll verticale
-          padding: '10px',
-          fontFamily: 'monospace', // Buono per log allineati
-          whiteSpace: 'pre-wrap', // Mantiene spazi e va a capo
-          backgroundColor: '#f8f9fa', // Leggero sfondo per distinguerlo
-          borderRadius: '4px',
-          lineHeight: '1.5' // Migliora leggibilità
-      }}
       tabIndex={0} // Rende il div focusabile via tastiera per scrollare manualmente se necessario
       aria-label="Combat Log - aggiornamenti automatici della battaglia"
     >

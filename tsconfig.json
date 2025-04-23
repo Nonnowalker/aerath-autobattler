@@ -1,58 +1,43 @@
 {
   "compilerOptions": {
-    // --- Impostazioni Fondamentali per il Modulo ---
-    "module": "NodeNext",                 // Gestione moduli per Node.js moderno (supporta import/require)
-    "moduleResolution": "NodeNext",       // Algoritmo di risoluzione dei moduli associato a NodeNext
-    "target": "ES2020",                   // Standard JavaScript output (ES2020 o più recente)
+    // --- Fondamentali Moduli & Target ---
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022", // Leggermente aggiornato, ES2020 va bene uguale
 
-    // --- Integrazione React / Frontend (probabilmente già presenti da Vite) ---
-    "jsx": "react-jsx",                   // Supporto JSX per React 17+
-    "lib": ["ES2020", "DOM", "DOM.Iterable"], // Librerie standard da includere (Browser + JS moderno)
+    // --- Frontend / React / Vite ---
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
 
-    // --- Strictness & Buone Pratiche (altamente raccomandate) ---
-    "strict": true,                       // Abilita tutti i controlli strict (null checks, ecc.)
-    "esModuleInterop": true,              // Migliora la compatibilità tra moduli CommonJS ed ES
-    "forceConsistentCasingInFileNames": true, // Forza coerenza nel case dei nomi file
-    "skipLibCheck": true,                 // Salta il controllo dei tipi nei file di dichiarazione (.d.ts) per velocità
-    "noUnusedLocals": true,              // Segnala variabili locali non usate
-    "noUnusedParameters": true,          // Segnala parametri funzione non usati
-    "noFallthroughCasesInSwitch": true,   // Previene errori in switch case senza break/return
+    // --- Strictness & Qualità Codice ---
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
 
-    // --- Impostazioni Specifiche Vite (probabilmente già presenti) ---
-    "isolatedModules": true,              // Necessario per alcuni tool come Babel/Vite (ogni file è un modulo separato)
-    "resolveJsonModule": true,            // Permette di importare file .json come moduli
-    "allowJs": true,                      // Permette di includere file .js nel progetto (utile per compatibilità)
-    "noEmit": true,                      // IMPORTANTE (se usi Vite): TypeScript controlla solo i tipi, non genera JS (Vite lo fa)
+    // --- Vite / Bundling ---
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "noEmit": true, // MANTENUTO: Lascia il build a Vite/Rollup o a uno script `tsc` dedicato
 
-    // --- Gestione Percorsi (Opzionale ma utile con struttura /src) ---
-     "baseUrl": ".",                       // Radice per i percorsi (di solito la root del progetto)
-     "paths": {                            // Definisce alias per i percorsi (esempio)
-       "@frontend/*": ["src/frontend/*"],
-       "@backend/*": ["src/backend/*"],
-       "@simulation/*": ["src/simulation/*"]
-     },
-
-     // --- Cartelle di Output (Ignorate se `noEmit` è true, ma utili se buildi backend separatamente) ---
-    // "outDir": "./dist",                 // Cartella di output per il build JS (se noEmit è false)
-    // "rootDir": "./src"                   // Radice del codice sorgente per il build
+    // --- Gestione Percorsi (Opzionale ma può aiutare) ---
+    "baseUrl": ".",
+    "paths": {
+      "@frontend/*": ["src/frontend/*"],
+      "@backend/*": ["src/backend/*"],
+      "@simulation/*": ["src/simulation/*"]
+    }
   },
-
-  // --- Cosa includere nella compilazione/controllo ---
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"], // Include tutti i file TS/TSX in src e la config di Vite
-
-  // --- Cosa escludere ---
-  "exclude": ["node_modules", "dist"],      // Escludi le dipendenze e la cartella di build (se presente)
-
-  // --- Riferimenti (Utile in monorepo, meno in questo caso ma presente a volte) ---
-  "references": [{ "path": "./tsconfig.node.json" }] // Comune in template Vite - configura opzioni specifiche per Node (es. config Vite)
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vite.config.ts" // Includi la config di Vite se è in TS
+    ],
+  "exclude": ["node_modules", "dist"], // Escludi node_modules e la cartella di build (se generata)
+  // --- Riferimenti (Verifica se esiste tsconfig.node.json nel tuo progetto) ---
+  "references": [{ "path": "./tsconfig.node.json" }] // Mantieni se generato da Vite
 }
-
-// NOTA: Potresti avere un file separato tsconfig.node.json vicino,
-//       generato da Vite, che contiene impostazioni specifiche
-//       per l'ambiente Node.js usato da Vite (es. per vite.config.ts).
-//       Assicurati che le impostazioni in quel file non siano
-//       in conflitto diretto con 'module' e 'moduleResolution' impostate qui.
-//       Se tsconfig.node.json forza "module": "CommonJS", potresti
-//       dover modificare lo script 'dev:backend' o usare approcci diversi
-//       per eseguire il backend. Per ora, questo tsconfig.json dovrebbe
-//       essere il file principale da controllare/modificare.
