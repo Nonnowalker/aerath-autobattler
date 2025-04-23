@@ -1,0 +1,25 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  // Il path al file DB viene letto dal file .env
+  url      = env("DATABASE_URL")
+}
+
+// Modello per le nostre Carte
+model Card {
+  id               Int     @id @default(autoincrement()) // ID auto-incrementante
+  dbId             String  @unique // Manteniamo l'ID stringa originale (es: goblin_base)
+  nome             String
+  attacco          Int
+  vita             Int
+  tempoSchieramento Int
+  velocitaAttacco  Int
+  createdAt        DateTime @default(now()) // Data creazione (opzionale)
+  updatedAt        DateTime @updatedAt     // Data aggiornamento (opzionale)
+
+  // Aggiungere qui futuri campi: costoMana Int?, testoAbilita String?, tipo String?, rarita String? ecc.
+}
