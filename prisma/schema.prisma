@@ -8,38 +8,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Definiamo i tipi di carta consentiti
-enum CardType {
-  Unita
-  Potere
-  // Aggiungere altri tipi futuri qui (Es. Equipaggiamento, Luogo?)
-}
+// --- RIMUOVI o COMMENTA LA DEFINIZIONE ENUM ---
+// enum CardType {
+//   Unita
+//   Potere
+// }
 
 model Card {
-  id                      Int      @id @default(autoincrement()) // ID Auto-incrementante DB
-  dbId                    String   @unique // ID Stringa univoco del gioco (es: goblin_base)
+  id                      Int      @id @default(autoincrement())
+  dbId                    String   @unique
   nome                    String
-  tipo                    CardType // NUOVO: Usa l'enum CardType
-  attacco                 Int?     // OPZIONALE: Applicabile solo a Unità (?), null per Poteri
-  vita                    Int?     // OPZIONALE: Applicabile solo a Unità/Eroe (?), null per Poteri
-  // Rinominato 'tempoSchieramento'
-  punteggioPreparazioneIniziale Int  // NUOVO/RINOMINATO: Costo base per la meccanica di preparazione
-  descrizioneAbilita      String?  // OPZIONALE: Testo descrittivo per UI
-  // Vecchi campi, potrebbero non servire più o essere usati diversamente
-  // velocitaAttacco         Int?     // Forse si sposta in 'descrizioneAbilita' o struttura complessa?
-
+  tipo                    String   // <--- Deve essere String
+  attacco                 Int?
+  vita                    Int?
+  punteggioPreparazioneIniziale Int
+  descrizioneAbilita      String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-
-  // --- Potenziali Campi Futuri ---
-  // testoEffettoPotere      String?
-  // codiceAbilitaUnita    String? // Per DSL o script
-  // rarita                String?
-  // immagineUrl           String?
 }
-
-// Potresti aggiungere un modello Eroe separato in futuro
-// model Hero { ... }
-
-// Potresti aggiungere un modello Equipaggiamento separato in futuro
-// model Equipment { ... }

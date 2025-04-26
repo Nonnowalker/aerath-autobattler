@@ -3,10 +3,11 @@ CREATE TABLE "Card" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "dbId" TEXT NOT NULL,
     "nome" TEXT NOT NULL,
-    "attacco" INTEGER NOT NULL,
-    "vita" INTEGER NOT NULL,
-    "tempoSchieramento" INTEGER NOT NULL,
-    "velocitaAttacco" INTEGER NOT NULL,
+    "tipo" TEXT NOT NULL,
+    "attacco" INTEGER,
+    "vita" INTEGER,
+    "punteggioPreparazioneIniziale" INTEGER NOT NULL,
+    "descrizioneAbilita" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
