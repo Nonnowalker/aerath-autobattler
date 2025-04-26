@@ -1,54 +1,69 @@
 // src/simulation/data/cards.ts
-import { Carta } from '../types';
-
-// Definiamo un set di carte molto basilari per i test
-export const carteBase: Carta[] = [
-  // --- Carte Comuni ---
+// Assumiamo che l'interfaccia Carta qui venga aggiornata per coerenza
+// Ma per ora modifichiamo solo i dati nell'array:
+export const carteBase = [ // Ora assumiamo che tutti questi siano 'Unità' per esempio
   {
     id: 'goblin_base',
     nome: 'Goblin Esploratore',
+    tipo: 'Unità', // <--- AGGIUNGI TIPO
     attacco: 2,
     vita: 3,
-    tempoSchieramento: 2, // Schiera la prossima carta dopo 2 tick
-    velocitaAttacco: 3    // Attacca ogni 3 tick
+    // Rinominato 'tempoSchieramento' in 'punteggioPreparazioneIniziale'
+    punteggioPreparazioneIniziale: 2, // <--- RINOMINATO/AGGIUNTO
+    // 'velocitaAttacco' probabilmente non serve più qui, commenta o rimuovi
+    // velocitaAttacco: 3
+    descrizioneAbilita: "Una fastidiosa piccola creatura.", // <--- OPZIONALE
   },
   {
     id: 'scheletro_fragile',
     nome: 'Scheletro Fragile',
+    tipo: 'Unità',
     attacco: 1,
     vita: 1,
-    tempoSchieramento: 1, // Molto veloce da ciclare
-    velocitaAttacco: 2    // Attacca velocemente
+    punteggioPreparazioneIniziale: 1,
+    descrizioneAbilita: "Si rompe facilmente.",
   },
   {
     id: 'guardia_citta',
     nome: 'Guardia Cittadina',
+    tipo: 'Unità',
     attacco: 3,
     vita: 5,
-    tempoSchieramento: 3,
-    velocitaAttacco: 4
+    punteggioPreparazioneIniziale: 3,
+    descrizioneAbilita: "Difensore standard.",
   },
-
-  // --- Carte Non Comuni ---
   {
     id: 'orco_bruto',
     nome: 'Orco Bruto',
+    tipo: 'Unità',
     attacco: 5,
     vita: 7,
-    tempoSchieramento: 4, // Piu' lento a schierare
-    velocitaAttacco: 5    // Attacco potente ma lento
+    punteggioPreparazioneIniziale: 4,
+    descrizioneAbilita: "Grande e grosso.",
   },
   {
     id: 'arciere_elfo',
     nome: 'Arciere Elfo',
+    tipo: 'Unità',
     attacco: 3,
     vita: 3,
-    tempoSchieramento: 3,
-    velocitaAttacco: 3    // Buon bilanciamento
+    punteggioPreparazioneIniziale: 3,
+    descrizioneAbilita: "Colpisce dalla distanza (nota: abilità non ancora implementata!).",
+  },
+  // --- Aggiungiamo un POTERE di esempio ---
+  {
+      id: 'fulmine_improvviso',
+      nome: 'Fulmine Improvviso',
+      tipo: 'Potere', // <--- TIPO POTERE
+      // Attacco e Vita sono null o 0 per i poteri nel nostro schema
+      attacco: undefined, // O null se il campo è opzionale nel DB
+      vita: undefined,    // O null
+      punteggioPreparazioneIniziale: 2,
+      descrizioneAbilita: "Infligge 3 danni all'unità nemica con la vita più bassa.", // Descrizione effetto
   },
 ];
 
-// Funzione helper per trovare una carta per ID (utile per creare i mazzi)
-export function getCartaById(id: string): Carta | undefined {
+// Funzione helper (invariata per ora, ma assicurati usi 'id')
+export function getCartaById(id: string): any | undefined { // Il tipo 'any' qui è temporaneo
   return carteBase.find(carta => carta.id === id);
 }
