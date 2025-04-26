@@ -1,199 +1,171 @@
 // src/frontend/App.tsx
-import { avviaSimulazioneCompleta, SimulationParams } from '../simulation/engine.js'; // <-- IMPORTANTE .js e nuovo nome
-
 import React, { useState, useEffect } from 'react';
 import CombatLogDisplay from './components/CombatLogDisplay';
-import { simulaPartita, StatoPartita } from '../simulation';
-// Assicurati che l'interfaccia 'Carta' sia esportata o definita come necessaria nel simulatore
-import { Carta as SimulationCard } from '../simulation/types'; // Rinomino per chiarezza
-import CardList from './components/CardList'; // Importa il componente lista
-import CardCreatorForm from './components/CardCreatorForm'; // Importa il componente form
+import CardList from './components/CardList';
+import CardCreatorForm from './components/CardCreatorForm';
+import { avviaSimulazioneCompleta, SimulationParams, StatoPartita } from '../simulation/engine.js'; // Importa con .js
+import { CartaDef as SimulationCard } from '../simulation/types.js'; // Importa con .js e rinomina
 import './styles/main.scss';
 
-// Interfaccia per la carta come ci aspettiamo che arrivi dall'API backend
-// Idealmente, questa potrebbe venire da un file `types.ts` condiviso o specifico per l'API
+// Interfaccia per i dati delle carte come arrivano dall'API Backend
+// Mettila qui o in un file types condiviso (es. src/types/api.ts)
 export interface ApiCard {
     id: number; // ID numerico del DB
-    dbId: string; // ID stringa logico univoco (es. goblin_base)
+    dbId: string; // ID stringa logico univoco
     nome: string;
-    attacco: number;
-    vita: number;
-    tempoSchieramento: number;
-    velocitaAttacco: number;
-    // Potremmo aggiungere createdAt, updatedAt se utili nel frontend
+    tipo: 'Unita' | 'Potere';
+    attacco: number | null; // Nullable se non applicabile (Poteri)
+    vita: number | null; // Nullable se non applicabile (Poteri)
+    punteggioPreparazioneIniziale: number;
+    descrizioneAbilita: string | null; // Nullable
+    createdAt?: string; // Opzionale
+    updatedAt?: string; // Opzionale
 }
 
-// Funzione di mappatura per convertire il formato API a quello atteso dal simulatore
-// Utile se le strutture dovessero divergere in futuro
+// Funzione per mappare i dati API nel formato richiesto dal simulatore
 const mapApiCardToSimulationCard = (apiCard: ApiCard): SimulationCard => {
-    // Costruisce l'oggetto SimulationCard basato sull'ApiCard
     return {
-        id: apiCard.dbId, // Usa il dbId come 'id' per la logica del simulatore
+        id: apiCard.dbId, // Simulatore usa dbId come id logico
         nome: apiCard.nome,
-        attacco: apiCard.attacco,
-        vita: apiCard.vita,
-        tempoSchieramento: apiCard.tempoSchieramento,
-        velocitaAttacco: apiCard.velocitaAttacco,
-        // Assicurati che tutti i campi richiesti da SimulationCard siano qui
+        tipo: apiCard.tipo,
+        // Assicurati che il simulatore gestisca undefined/null se necessario, o assegna 0
+        attacco: apiCard.attacco ?? undefined, // Usa undefined se null
+        vita: apiCard.vita ?? undefined, // Usa undefined se null
+        punteggioPreparazioneIniziale: apiCard.punteggioPreparazioneIniziale,
+        descrizioneAbilita: apiCard.descrizioneAbilita ?? undefined,
     };
-}
-
+};
 
 function App() {
+    // Stati del componente
     const [simulazioneRisultato, setSimulazioneRisultato] = useState<StatoPartita | null>(null);
-    const [availableCards, setAvailableCards] = useState<ApiCard[]>([]); // Stato per le carte dal DB
-    const [isLoadingCards, setIsLoadingCards] = useState<boolean>(true); // Stato per indicare il caricamento
-    const [errorMessage, setErrorMessage] = useState<string | null>(null); // Stato per messaggi di errore (fetch, simulazione, ecc.)
-    const avviaSimulazione = () => {
-        setErrorMessage(null);
-        if (availableCards.length === 0) {
-            setErrorMessage("Nessuna carta disponibile...");
-            return;
-        }
-        setSimulazioneRisultato(null);
-  
-        // Crea i mazzi usando le carte disponibili (già mappate nel formato giusto da mapApi...)
-         const mazzoSimG1 = creaMazzoCasuale(30, availableCards); // Es: mazzi da 30 carte
-         const mazzoSimG2 = creaMazzoCasuale(30, availableCards);
-  
-         if (mazzoSimG1.length > 0 && mazzoSimG2.length > 0) {
-              // Crea l'oggetto parametri
-              const params: SimulationParams = {
-                  mazzoDefG1: mazzoSimG1,
-                  mazzoDefG2: mazzoSimG2,
-                  // hpInizialiEroe: 50 // Puoi passare HP diversi se vuoi
-              };
-              // Chiama la NUOVA funzione di simulazione
-              const risultato = avviaSimulazioneCompleta(params);
-              setSimulazioneRisultato(risultato);
-         } else {
-             setErrorMessage("Impossibile creare mazzi.");
-         }
-    };
+    const [availableCards, setAvailableCards] = useState<ApiCard[]>([]);
+    const [isLoadingCards, setIsLoadingCards] = useState<boolean>(true);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-
-    // --- Funzione per caricare le carte dall'API ---
+    // --- Funzione per Caricare le Carte dall'API Backend ---
     const fetchCards = async () => {
         setIsLoadingCards(true);
-        setErrorMessage(null); // Pulisce errori precedenti
+        setErrorMessage(null);
         try {
-            // Assicurati che l'URL e la porta siano quelli del tuo backend
-            const response = await fetch('http://localhost:3001/api/cards');
+            const response = await fetch('http://localhost:3001/api/cards'); // URL Backend
             if (!response.ok) {
-                 // Prova a leggere un messaggio di errore specifico dal corpo JSON
-                 let errorMsg = `Errore HTTP: ${response.status}`;
-                 try {
-                     const errorBody = await response.json();
-                     if (errorBody.error) errorMsg = errorBody.error;
-                 } catch(e) { /* Ignora se il body non è JSON valido */ }
-                 throw new Error(errorMsg);
+                let errorMsg = `Errore HTTP: ${response.status}`;
+                try { const errorBody = await response.json(); if (errorBody.error) errorMsg = errorBody.error; } catch (e) { /* ignore */ }
+                throw new Error(errorMsg);
             }
             const data: ApiCard[] = await response.json();
-            setAvailableCards(data); // Aggiorna lo stato con le carte caricate
+            setAvailableCards(data);
         } catch (error: any) {
-            console.error("Errore nel caricamento delle carte:", error);
-            // Mostra un messaggio di errore generico o quello specifico catturato
-            setErrorMessage(error.message || "Impossibile caricare le definizioni delle carte dal server.");
+            console.error("Errore nel caricamento carte:", error);
+            setErrorMessage(error.message || "Impossibile caricare le carte dal server.");
         } finally {
-            setIsLoadingCards(false); // Caricamento terminato (successo o fallimento)
+            setIsLoadingCards(false);
         }
     };
 
-    // --- Carica le carte iniziali al montaggio del componente ---
+    // --- Effetto per Caricare le Carte all'Avvio ---
     useEffect(() => {
         fetchCards();
-    }, []); // L'array vuoto [] significa che questo effect viene eseguito solo una volta, al montaggio del componente
+    }, []); // Esegui solo una volta
 
-
-    // Funzione helper per creare mazzi casuali di N carte, prendendole da quelle disponibili
-    // Permette la ripetizione delle carte nel mazzo risultante
+    // --- Funzione Helper per Creare Mazzi Casuali (dalle carte caricate) ---
     function creaMazzoCasuale(numeroCarte: number, carteDisponibili: ApiCard[]): SimulationCard[] {
-        if (carteDisponibili.length === 0) return []; // Ritorna vuoto se non ci sono carte base
+        if (carteDisponibili.length === 0) return [];
         const mazzo: ApiCard[] = [];
         for (let i = 0; i < numeroCarte; i++) {
-            // Sceglie un indice casuale tra quelli disponibili
             const randomIndex = Math.floor(Math.random() * carteDisponibili.length);
-            mazzo.push(carteDisponibili[randomIndex]); // Aggiunge la carta pescata casualmente
+            mazzo.push(carteDisponibili[randomIndex]);
         }
-        // Mappa le carte selezionate (formato API) nel formato atteso dal simulatore
+        // Mappa le carte dal formato API a quello del simulatore
         return mazzo.map(mapApiCardToSimulationCard);
     }
 
-
-    // --- Funzione per avviare la simulazione ---
+    // --- Funzione per Avviare la Simulazione ---
+    // >> QUESTA È L'UNICA DEFINIZIONE DELLA FUNZIONE <<
     const avviaSimulazione = () => {
-        setErrorMessage(null); // Pulisce eventuali messaggi di errore precedenti
+        setErrorMessage(null);
         if (availableCards.length === 0) {
             setErrorMessage("Nessuna carta disponibile nel DB per creare i mazzi.");
             return;
         }
-        setSimulazioneRisultato(null); // Pulisce il log della simulazione precedente
+        setSimulazioneRisultato(null); // Pulisce log precedente
 
-        // Crea due mazzi casuali di 10 carte ciascuno (puoi cambiare il numero)
-        const mazzoSimulazioneG1 = creaMazzoCasuale(10, availableCards);
-        const mazzoSimulazioneG2 = creaMazzoCasuale(10, availableCards);
+        // Crea due mazzi casuali di 30 carte (esempio)
+        const mazzoSimG1 = creaMazzoCasuale(30, availableCards);
+        const mazzoSimG2 = creaMazzoCasuale(30, availableCards);
 
-        // Assicurati che i mazzi siano stati creati correttamente prima di simulare
-        if (mazzoSimulazioneG1.length > 0 && mazzoSimulazioneG2.length > 0) {
-            // Passa i mazzi (che sono già nel formato corretto grazie a mapApi...) al simulatore
-            const risultato = simulaPartita(mazzoSimulazioneG1, mazzoSimulazioneG2);
-            setSimulazioneRisultato(risultato); // Aggiorna lo stato con il risultato della simulazione
+        if (mazzoSimG1.length > 0 && mazzoSimG2.length > 0) {
+            // Prepara i parametri per la funzione del motore
+            const params: SimulationParams = {
+                mazzoDefG1: mazzoSimG1,
+                mazzoDefG2: mazzoSimG2,
+                // Puoi specificare hpInizialiEroe se vuoi sovrascrivere il default
+                // hpInizialiEroe: 50
+            };
+            try {
+                 // Chiama la funzione di simulazione aggiornata
+                const risultato = avviaSimulazioneCompleta(params);
+                setSimulazioneRisultato(risultato);
+            } catch (error: any) {
+                 console.error("Errore durante la simulazione:", error);
+                 setErrorMessage(`Errore durante la simulazione: ${error.message}`);
+                 setSimulazioneRisultato(null); // Assicura pulizia in caso di errore interno sim
+            }
         } else {
-             setErrorMessage("Impossibile creare mazzi validi (forse non ci sono carte?).");
+            setErrorMessage("Impossibile creare mazzi validi (forse non ci sono carte caricate?).");
         }
     };
 
+    // --- Rendering del Componente ---
     return (
         <div className="App">
-            <h1>Aerath Auto Battler</h1>
-             <hr />
+            <h1>Undertow Auto Battler</h1> {/* Aggiornato nome! */}
+            <hr />
 
             {/* --- Sezione Simulazione --- */}
             <h2>Simulatore</h2>
+            {/* Mostra indicatori di caricamento ed errori */}
             {isLoadingCards && <p>Caricamento carte dal database...</p>}
-            {/* Mostra errore generale se presente */}
             {errorMessage && <p style={{ color: 'red' }}>Errore: {errorMessage}</p>}
 
             <button onClick={avviaSimulazione} disabled={isLoadingCards || availableCards.length === 0}>
                 Avvia Simulazione (Mazzi Casuali dal DB)
             </button>
 
-            {/* Mostra il log della simulazione se esiste */}
+            {/* Mostra il log di combattimento se la simulazione è avvenuta */}
             {simulazioneRisultato && (
-               <div style={{ marginTop: '20px'}}>
-                  <CombatLogDisplay logEntries={simulazioneRisultato.log} />
-                  {/* Mostra il risultato finale quando la partita termina */}
-                  {simulazioneRisultato.gameOver && (
-                     <p style={{marginTop: '10px', fontWeight: 'bold', fontSize: '1.1em'}}>
-                         Partita finita al Tick {simulazioneRisultato.tickAttuale}! Vincitore: {
-                             simulazioneRisultato.vincitore ? `Giocatore ${simulazioneRisultato.vincitore}` : 'Pareggio'
-                         }
-                     </p>
-                  )}
-               </div>
+                <div style={{ marginTop: '20px' }}>
+                    <CombatLogDisplay logEntries={simulazioneRisultato.eventiLog} />
+                    {/* Mostra il risultato finale al termine */}
+                    {simulazioneRisultato.gameOver && (
+                        <p style={{ marginTop: '10px', fontWeight: 'bold', fontSize: '1.1em' }}>
+                            Partita finita al Turno {simulazioneRisultato.turnoAttuale}! Vincitore: {
+                                simulazioneRisultato.vincitore ? `Giocatore ${simulazioneRisultato.vincitore}` : 'Pareggio'
+                            }
+                        </p>
+                    )}
+                </div>
             )}
 
-             {/* --- Sezione Gestione Carte --- */}
-             <hr style={{ margin: '40px 0'}} />
-             <h2>Gestione Carte Database</h2>
-             {/* Layout a due colonne per lista e form */}
-             <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap'}}>
-                 {/* Colonna Sinistra: Lista Carte */}
-                 <div style={{ flex: 1, minWidth: '400px' }}>
-                     {/* Passiamo le carte caricate e lo stato di caricamento */}
-                     <CardList cards={availableCards} isLoading={isLoadingCards} />
-                      {/* Pulsante per ricaricare manualmente la lista (utile dopo aggiunte/modifiche) */}
-                     <button onClick={fetchCards} disabled={isLoadingCards} style={{marginTop: '10px'}}>
-                         {isLoadingCards ? 'Caricamento...' : 'Ricarica Lista Carte'}
-                     </button>
-                 </div>
-                  {/* Colonna Destra: Form Creazione Carta */}
-                  <div style={{ flex: 1, minWidth: '300px' }}>
-                      {/* Passiamo fetchCards come callback da eseguire dopo la creazione */}
-                      {/* Al momento CardCreatorForm non la usa, ma è una buona pratica averla */}
-                      <CardCreatorForm onCardCreated={fetchCards}/>
-                  </div>
-             </div>
+            {/* --- Sezione Gestione Carte --- */}
+            <hr style={{ margin: '40px 0' }} />
+            <h2>Gestione Carte Database</h2>
+            {/* Layout a due colonne per lista e form */}
+            <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+                {/* Colonna Sinistra: Lista Carte */}
+                <div style={{ flex: 1, minWidth: '400px' }}>
+                    <CardList cards={availableCards} isLoading={isLoadingCards} />
+                    <button onClick={fetchCards} disabled={isLoadingCards} style={{ marginTop: '10px' }}>
+                        {isLoadingCards ? 'Caricamento...' : 'Ricarica Lista Carte'}
+                    </button>
+                </div>
+                {/* Colonna Destra: Form Creazione Carta */}
+                <div style={{ flex: 1, minWidth: '300px' }}>
+                     {/* Passa fetchCards come callback per aggiornare la lista dopo la creazione */}
+                    <CardCreatorForm onCardCreated={fetchCards} />
+                </div>
+            </div>
         </div>
     );
 }
