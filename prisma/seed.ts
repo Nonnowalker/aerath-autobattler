@@ -1,6 +1,6 @@
 // prisma/seed.ts
-import { PrismaClient, CardType } from '@prisma/client'; // Importa anche CardType
-import { carteBase } from '../src/simulation/data/cards';
+import { PrismaClient } from '@prisma/client';
+import { carteBase } from '../src/simulation/data/cards'; // Verifica il percorso relativo
 
 const prisma = new PrismaClient();
 
@@ -8,30 +8,38 @@ async function main() {
   console.log(`Inizio seeding di ${carteBase.length} carte di esempio...`);
 
   for (const carta of carteBase) {
-    // Determina il tipo corretto per Prisma Enum
-    const prismaCardType: CardType = carta.tipo === 'Potere' ? CardType.Potere : CardType.Unita;
+    // Tipo viene direttamente dalla stringa in carteBase,
+    // purché corrisponda a "Unita" o "Potere" definiti nell'enum dello schema.
+    // Prisma dovrebbe accettare la stringa se matcha un valore dell'enum.
+    const tipoCartaDaSalvare = carta.tipo;
+
+    // Verifica per sicurezza che il tipo sia valido prima di inviarlo
+    if (tipoCartaDaSalvare !== 'Unità' && tipoCartaDaSalvare !== 'Potere') {
+         console.warn(`Tipo carta non valido "${tipoCartaDaSalvare}" per la carta ${carta.id}. Salto.`);
+         continue; // Salta questa carta
+    }
+
 
     const cardInDb = await prisma.card.upsert({
       where: { dbId: carta.id },
-      update: { // Dati da aggiornare (assicurati che i campi corrispondano allo schema!)
+      update: {
         nome: carta.nome,
-        tipo: prismaCardType, // Usa l'enum corretto
-        attacco: carta.attacco, // Ora può essere null/undefined se opzionale nel DB
-        vita: carta.vita,       // Ora può essere null/undefined se opzionale nel DB
-        punteggioPreparazioneIniziale: carta.punteggioPreparazioneIniziale,
-        descrizioneAbilita: carta.descrizioneAbilita ?? null, // Assegna null se undefined
-        // Rimuovi o commenta campi non più presenti (es. velocitaAttacco)
-        // velocitaAttacco: undefined, // o rimuovi la riga
-      },
-      create: { // Dati per la creazione (devono corrispondere!)
-        dbId: carta.id,
-        nome: carta.nome,
-        tipo: prismaCardType, // Usa l'enum corretto
+        // Usa direttamente la stringa se matcha l'enum
+        tipo: tipoCartaDaSalvare as ('Unita' | 'Potere'), // Cast per sicurezza TypeScript
         attacco: carta.attacco,
         vita: carta.vita,
         punteggioPreparazioneIniziale: carta.punteggioPreparazioneIniziale,
         descrizioneAbilita: carta.descrizioneAbilita ?? null,
-        // velocitaAttacco: undefined, // o rimuovi la riga
+      },
+      create: {
+        dbId: carta.id,
+        nome: carta.nome,
+        // Usa direttamente la stringa se matcha l'enum
+        tipo: tipoCartaDaSalvare as ('Unita' | 'Potere'), // Cast per sicurezza TypeScript
+        attacco: carta.attacco,
+        vita: carta.vita,
+        punteggioPreparazioneIniziale: carta.punteggioPreparazioneIniziale,
+        descrizioneAbilita: carta.descrizioneAbilita ?? null,
       },
     });
     console.log(`Carta creata/aggiornata: ${cardInDb.nome} (ID DB: ${cardInDb.id}, Tipo: ${cardInDb.tipo})`);
