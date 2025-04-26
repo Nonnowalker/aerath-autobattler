@@ -1,4 +1,6 @@
 // src/frontend/App.tsx
+import { avviaSimulazioneCompleta, SimulationParams } from '../simulation/engine.js'; // <-- IMPORTANTE .js e nuovo nome
+
 import React, { useState, useEffect } from 'react';
 import CombatLogDisplay from './components/CombatLogDisplay';
 import { simulaPartita, StatoPartita } from '../simulation';
@@ -42,6 +44,32 @@ function App() {
     const [availableCards, setAvailableCards] = useState<ApiCard[]>([]); // Stato per le carte dal DB
     const [isLoadingCards, setIsLoadingCards] = useState<boolean>(true); // Stato per indicare il caricamento
     const [errorMessage, setErrorMessage] = useState<string | null>(null); // Stato per messaggi di errore (fetch, simulazione, ecc.)
+    const avviaSimulazione = () => {
+        setErrorMessage(null);
+        if (availableCards.length === 0) {
+            setErrorMessage("Nessuna carta disponibile...");
+            return;
+        }
+        setSimulazioneRisultato(null);
+  
+        // Crea i mazzi usando le carte disponibili (già mappate nel formato giusto da mapApi...)
+         const mazzoSimG1 = creaMazzoCasuale(30, availableCards); // Es: mazzi da 30 carte
+         const mazzoSimG2 = creaMazzoCasuale(30, availableCards);
+  
+         if (mazzoSimG1.length > 0 && mazzoSimG2.length > 0) {
+              // Crea l'oggetto parametri
+              const params: SimulationParams = {
+                  mazzoDefG1: mazzoSimG1,
+                  mazzoDefG2: mazzoSimG2,
+                  // hpInizialiEroe: 50 // Puoi passare HP diversi se vuoi
+              };
+              // Chiama la NUOVA funzione di simulazione
+              const risultato = avviaSimulazioneCompleta(params);
+              setSimulazioneRisultato(risultato);
+         } else {
+             setErrorMessage("Impossibile creare mazzi.");
+         }
+    };
 
 
     // --- Funzione per caricare le carte dall'API ---

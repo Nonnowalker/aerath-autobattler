@@ -1,39 +1,79 @@
 // src/simulation/types.ts
 
-export interface Carta {
-    id: string;         // ID unico della carta
-    nome: string;       // Nome visualizzato
-    attacco: number;    // Danno base inflitto
-    vita: number;       // Punti vita iniziali
-    tempoSchieramento: number; // Tick necessari prima che possa essere schierata la prossima carta dopo questa
-    velocitaAttacco: number;  // Tick tra un attacco e l'altro dell'unità
-    // Aggiungeremo qui altre proprietà come abilità, tipo, ecc. in futuro
-  }
-  
-  // Rappresenta una carta specifica sul campo di battaglia
-  export interface UnitaInGioco {
-    idIstanza: number;     // ID unico per questa specifica unità sul campo
-    idGiocatore: number;   // ID del giocatore che la controlla (1 o 2)
-    cartaOriginale: Carta; // Riferimento alla definizione base della carta
-    vitaAttuale: number;   // Punti vita correnti
-    tickProssimaAzione: number; // Tick in cui questa unità potrà agire di nuovo
-  }
-  
-  // Rappresenta lo stato di un giocatore durante la simulazione
-  export interface StatoGiocatore {
-    id: number;
-    hpBase: number;           // Punti vita della base/eroe
-    mazzoRimanente: Carta[];  // Le carte ancora nel mazzo del giocatore
-    tickProssimoDeploy: number; // Tick in cui il giocatore potrà schierare la prossima carta
-  }
-  
-  // Stato globale della partita, aggiornato ad ogni tick
-  export interface StatoPartita {
-    tickAttuale: number;
-    giocatori: [StatoGiocatore, StatoGiocatore]; // Array di due giocatori
-    campoBattaglia: UnitaInGioco[]; // Tutte le unità attualmente in gioco
-    log: string[];                 // Il log degli eventi della partita
-    gameOver: boolean;
-    vincitore: number | null;      // ID del giocatore vincitore (o null)
-    prossimoIdIstanza: number;     // Contatore per generare ID unici per le UnitaInGioco
-  }
+// Definizione Base (come da DB/API, non la cambiamo ora)
+export interface CartaDef {
+  id: string;
+  nome: string;
+  tipo: 'Unita' | 'Potere';
+  attacco?: number;
+  vita?: number;
+  punteggioPreparazioneIniziale: number;
+  descrizioneAbilita?: string;
+}
+
+// Istanza di Carta in Mano
+export interface CartaInMano {
+  idIstanzaUnica: number;
+  cartaDef: CartaDef;
+  preparazioneAttuale: number;
+  // 'Bloccato' usato se un potere è a 0 ma non può essere lanciato
+  statoPotere?: 'Pronto' | 'Bloccato';
+}
+
+// Istanza di Unità sul Campo
+export interface UnitaInGioco {
+  idIstanzaUnica: number;
+  cartaDef: CartaDef;
+  idGiocatore: number;
+  slot: number; // Posizione 0-6 specifica del giocatore
+  vitaAttuale: number;
+  attaccoAttuale: number; // Base, modificabile in futuro
+  // Futuro: puoAttaccareQuestoTurno, effettiStatus[]
+}
+
+// Eroe in Gioco
+export interface EroeInGioco {
+    idGiocatore: number;
+    hpAttuali: number;
+    hpMax: number;
+    // Futuro: equipaggiamenti, abilitaPassiva
+}
+
+// Stato di un Giocatore
+export interface StatoGiocatore {
+  id: number; // 1 o 2
+  eroe: EroeInGioco;
+  mano: CartaInMano[]; // Max 7 a fine turno
+  mazzoRimanente: CartaDef[];
+  carteScartate: CartaDef[]; // Cimitero
+  contatoreFatica: number;
+}
+
+// Stato Globale della Partita
+export interface StatoPartita {
+  // Identificativi partita (opzionale)
+  idPartita?: string;
+  // Stato attuale
+  turnoAttuale: number; // Numero del turno (1, 2, ...)
+  idGiocatoreAttivo: number; // 1 o 2
+  faseTurno: string; // Es: "InizioTurno", "Pesca", "Preparazione", "Gioco", "Attacco", "Morte", "FineTurno"
+  // Componenti gioco
+  giocatori: [StatoGiocatore, StatoGiocatore];
+  // Campo battaglia: Array[7] per ogni giocatore (null se slot vuoto)
+  campoG1: (UnitaInGioco | null)[];
+  campoG2: (UnitaInGioco | null)[];
+  // Log e stato finale
+  eventiLog: string[];
+  gameOver: boolean;
+  vincitore: number | null; // ID del vincitore o null
+  // Contatori e flag interni
+  prossimoIdIstanzaUnica: number; // Per carte in mano -> unità in gioco
+  primoTurnoP1Saltato: boolean;   // Flag per gestire regola prima pesca G1
+}
+
+// Tipo Helper per i parametri iniziali della simulazione
+export interface SimulationParams {
+    mazzoDefG1: CartaDef[]; // Le definizioni carta per il mazzo G1
+    mazzoDefG2: CartaDef[]; // Le definizioni carta per il mazzo G2
+    hpInizialiEroe?: number; // Opzionale, default a 40
+}
