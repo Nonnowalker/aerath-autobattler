@@ -1,4 +1,6 @@
 // src/simulation/engine.ts
+// Versione Completa e Pulita
+
 import {
     StatoPartita,
     CartaDef,
@@ -18,6 +20,7 @@ const MAX_TURNI = 100; // Limite per prevenire loop infiniti
 // --- Funzioni Helper ---
 
 function shuffleArray<T>(array: T[]): T[] {
+    // Implementazione Fisher-Yates shuffle
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -27,23 +30,25 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 function getGiocatori(stato: StatoPartita): { attivo: StatoGiocatore, passivo: StatoGiocatore } {
-    const attivo = stato.giocatori.find(g => g.id === stato.idGiocatoreAttivo)!;
-    const passivo = stato.giocatori.find(g => g.id !== stato.idGiocatoreAttivo)!;
+    // Restituisce gli oggetti giocatore attivo e passivo
+    const attivo = stato.giocatori.find(g => g.id === stato.idGiocatoreAttivo);
+    const passivo = stato.giocatori.find(g => g.id !== stato.idGiocatoreAttivo);
     if (!attivo || !passivo) {
-        throw new Error("Impossibile determinare giocatore attivo/passivo!");
+        // Questo non dovrebbe mai accadere in una partita valida
+        throw new Error(`Errore critico: Impossibile determinare giocatori attivo/passivo per idGiocatoreAttivo=${stato.idGiocatoreAttivo}`);
     }
     return { attivo, passivo };
 }
 
 function getCampi(stato: StatoPartita): { campoAttivo: (UnitaInGioco | null)[], campoPassivo: (UnitaInGioco | null)[] } {
+    // Restituisce gli array del campo battaglia per giocatore attivo e passivo
      const campoAttivo = stato.idGiocatoreAttivo === 1 ? stato.campoG1 : stato.campoG2;
      const campoPassivo = stato.idGiocatoreAttivo === 1 ? stato.campoG2 : stato.campoG1;
      return { campoAttivo, campoPassivo };
 }
 
-// Funzione per aggiungere log (opzionale: rimuovi/commenta console.log se troppo verbose)
 function logEvento(stato: StatoPartita, messaggio: string) {
-    // console.log(messaggio); // Scommenta per debug in console
+    // Aggiunge un messaggio al log eventi della partita
     stato.eventiLog.push(messaggio);
 }
 
@@ -52,41 +57,42 @@ function logEvento(stato: StatoPartita, messaggio: string) {
 function faseInizioTurno(stato: StatoPartita) {
     stato.faseTurno = "InizioTurno";
     logEvento(stato, `\n--- TURNO ${stato.turnoAttuale} (Giocatore ${stato.idGiocatoreAttivo}) ---`);
+    // TODO: Risolvere eventuali effetti "inizio turno" qui
 }
 
 function fasePesca(stato: StatoPartita) {
     stato.faseTurno = "Pesca";
     const { attivo } = getGiocatori(stato);
 
-    // Salta pesca per G1 al Turno 1
+    // Regola speciale per il primo turno del Giocatore 1
     if (stato.turnoAttuale === 1 && stato.idGiocatoreAttivo === 1 && !stato.primoTurnoP1Saltato) {
         logEvento(stato, `G${attivo.id}: Salta la pesca del primo turno.`);
         stato.primoTurnoP1Saltato = true;
-        return; // Salta il resto della fase
+        return; // Nessuna pesca o fatica
     }
 
+    // Pesca o Fatica
     if (attivo.mazzoRimanente.length === 0) {
-        // Fatica!
         attivo.contatoreFatica++;
         const dannoFatica = attivo.contatoreFatica;
         attivo.eroe.hpAttuali -= dannoFatica;
         logEvento(stato, `G${attivo.id}: Mazzo vuoto! Subisce ${dannoFatica} danni da Fatica (HP Eroe: ${attivo.eroe.hpAttuali})`);
-         // CONTROLLO VITTORIA POST-FATICA
-         if (attivo.eroe.hpAttuali <= 0) {
+         // Controllo KO immediato da fatica
+         if (attivo.eroe.hpAttuali <= 0 && !stato.gameOver) {
              stato.gameOver = true;
              stato.vincitore = attivo.id === 1 ? 2 : 1; // Vince l'avversario
              logEvento(stato, `!!! EROE G${attivo.id} SCONFITTO DALLA FATICA! G${stato.vincitore} VINCE !!!`);
          }
     } else {
-        // Pesca una carta
+        // Pesca una carta dal mazzo
         const cartaPescataDef = attivo.mazzoRimanente.shift()!;
         const nuovaCartaInMano: CartaInMano = {
             idIstanzaUnica: stato.prossimoIdIstanzaUnica++,
             cartaDef: cartaPescataDef,
             preparazioneAttuale: cartaPescataDef.punteggioPreparazioneIniziale,
-            // statoPotere non definito all'inizio
+            // statoPotere non settato al pescaggio
         };
-        attivo.mano.push(nuovaCartaInMano);
+        attivo.mano.push(nuovaCartaInMano); // Aggiunge alla mano (lo scarto avviene a fine turno)
         logEvento(stato, `G${attivo.id}: Pesca ${cartaPescataDef.nome} (Prep: ${nuovaCartaInMano.preparazioneAttuale})`);
     }
 }
@@ -95,23 +101,21 @@ function fasePreparazione(stato: StatoPartita) {
     stato.faseTurno = "Preparazione";
     const { attivo } = getGiocatori(stato);
     logEvento(stato, `G${attivo.id}: Fase Preparazione.`);
-    let logPrep = ""; // Log più conciso
+    let logPrep = ""; // Log compatto
     for (const carta of attivo.mano) {
-        const nomeCarta = carta.cartaDef.nome.substring(0,10); // Nome corto
+        const nomeCarta = carta.cartaDef.nome.substring(0,10);
         if (carta.preparazioneAttuale > 0) {
             const prepPre = carta.preparazioneAttuale;
-            carta.preparazioneAttuale--;
-            // Resetta stato potere bloccato SOLO se la preparazione torna > 0
-            // In realtà è meglio resettarlo a fine turno
-            // if (carta.statoPotere === 'Bloccato' && carta.preparazioneAttuale > 0) {
-            //      delete carta.statoPotere;
-            // }
+            carta.preparazioneAttuale--; // Decrementa preparazione
             logPrep += `${nomeCarta}(${prepPre}->${carta.preparazioneAttuale}) `;
         } else {
-            // Già a 0, mostra solo preparazione e stato bloccato se presente
-            logPrep += `${nomeCarta}(${carta.preparazioneAttuale}${carta.statoPotere === 'Bloccato' ? '*' : ''}) `;
+            // Logga solo se ha stati particolari (come Bloccato*)
+             if (carta.statoPotere === 'Bloccato') {
+                 logPrep += `${nomeCarta}(${carta.preparazioneAttuale}*B) `;
+             }
         }
     }
+    // Logga solo se è successo qualcosa nella preparazione
     if (logPrep) logEvento(stato, `- Prep: ${logPrep.trim()}`);
 }
 
@@ -122,16 +126,18 @@ function faseGiocoCarte(stato: StatoPartita) {
     logEvento(stato, `G${attivo.id}: Fase Gioco Carte (Mano: ${attivo.mano.length})`);
 
     let indiceCarta = 0;
+    // Itera sulla mano da sinistra a destra
     while (indiceCarta < attivo.mano.length) {
         const carta = attivo.mano[indiceCarta];
         let cartaGiocataEUscitaDallaMano = false;
 
-        // Controlla se la carta è pronta e non già marcata come Bloccato IN QUESTO TURNO
+        // Condizione per giocare: Preparazione a 0 e non già Bloccata in questo turno
         if (carta.preparazioneAttuale === 0 && carta.statoPotere !== 'Bloccato') {
             logEvento(stato, `- Tentativo gioco: ${carta.cartaDef.nome} (ID: ${carta.idIstanzaUnica})`);
 
             if (carta.cartaDef.tipo === 'Unita') {
-                const slotLibero = campoAttivo.findIndex(slot => !slot); // Trova primo slot falsy
+                // Trova il primo slot disponibile sul campo del giocatore attivo
+                const slotLibero = campoAttivo.findIndex(slot => !slot);
 
                 if (slotLibero !== -1) { // Slot trovato
                     const nuovaUnita: UnitaInGioco = {
@@ -139,51 +145,74 @@ function faseGiocoCarte(stato: StatoPartita) {
                         cartaDef: carta.cartaDef,
                         idGiocatore: attivo.id,
                         slot: slotLibero,
-                        vitaAttuale: carta.cartaDef.vita!,
-                        attaccoAttuale: carta.cartaDef.attacco!,
+                        vitaAttuale: carta.cartaDef.vita!, // Assumi 'vita' definito per Unità
+                        attaccoAttuale: carta.cartaDef.attacco!, // Assumi 'attacco' definito
                     };
-                    campoAttivo[slotLibero] = nuovaUnita;
-                    attivo.mano.splice(indiceCarta, 1);
+                    campoAttivo[slotLibero] = nuovaUnita; // Schiera unità
+                    attivo.mano.splice(indiceCarta, 1); // Rimuovi dalla mano
                     logEvento(stato, `  > G${attivo.id}: Schiera ${nuovaUnita.cartaDef.nome} nello slot ${slotLibero}`);
-                    cartaGiocataEUscitaDallaMano = true;
-                    // Non incrementare l'indice, riesamina questo indice
+                    cartaGiocataEUscitaDallaMano = true; // Carta è stata rimossa
                 } else {
-                    // Campo pieno
+                    // Non ci sono slot liberi
                     logEvento(stato, `  > Fallito: Campo pieno per ${carta.cartaDef.nome}`);
-                    // Lascia la carta, l'indice verrà incrementato sotto
+                    // La carta resta in mano, l'indice incrementa sotto
                 }
-            } else if (carta.cartaDef.tipo === 'Potere') {
+            }
+            else if (carta.cartaDef.tipo === 'Potere') {
+                // Gestione poteri
                 let bersaglioValidoTrovato = false; // Placeholder
-                // --- IMPLEMENTARE LOGICA REALE PER BERSAGLI POTERE ---
-                 if (carta.cartaDef.id === 'fulmine_improvviso') {
-                      const nemiciVivi = getCampi(stato).campoPassivo.filter(u => u !== null && u.vitaAttuale > 0) as UnitaInGioco[];
-                      if(nemiciVivi.length > 0){ bersaglioValidoTrovato = true; /* Logica fittizia trova bersaglio */ }
-                 } else { bersaglioValidoTrovato = true; /* Default */ }
-                // --- FINE PLACEHOLDER ---
+                // --- LOGICA PER CONDIZIONI/BERSAGLI DEI POTERI ---
+                // Questa sezione VA IMPLEMENTATA carta per carta o con un sistema più generico
+                if (carta.cartaDef.id === 'fulmine_improvviso') {
+                     const nemiciVivi = getCampi(stato).campoPassivo.filter(u => u !== null && u.vitaAttuale > 0);
+                     // Condizione: esiste almeno un nemico vivo
+                     if (nemiciVivi.length > 0) {
+                         bersaglioValidoTrovato = true;
+                     }
+                } else {
+                     // Default temporaneo: altri poteri (se ce ne fossero) si lanciano sempre
+                     bersaglioValidoTrovato = true;
+                }
+                // --- FINE LOGICA CONDIZIONI/BERSAGLI ---
 
                 if (bersaglioValidoTrovato) {
                     logEvento(stato, `  > G${attivo.id}: Lancia ${carta.cartaDef.nome}`);
-                    // --- IMPLEMENTARE EFFETTO REALE POTERE ---
-                    logEvento(stato, `    - Effetto Placeholder applicato! (TODO)`);
-                    // --- FINE EFFETTO REALE ---
-                    attivo.carteScartate.push(carta.cartaDef); // Il potere usato va negli scarti
-                    attivo.mano.splice(indiceCarta, 1);
-                    cartaGiocataEUscitaDallaMano = true;
-                     // Non incrementare l'indice
+                    // --- APPLICARE QUI L'EFFETTO DEL POTERE ---
+                    if (carta.cartaDef.id === 'fulmine_improvviso') {
+                         // Trova bersaglio effettivo (nemico con meno vita)
+                         const { campoPassivo } = getCampi(stato);
+                         const nemiciVivi = campoPassivo.filter(u => u !== null && u.vitaAttuale > 0) as UnitaInGioco[];
+                         if(nemiciVivi.length > 0){ // Ricontrollo sicurezza
+                            nemiciVivi.sort((a, b) => a.vitaAttuale - b.vitaAttuale); // Ordina per vita crescente
+                            const target = nemiciVivi[0]; // Il bersaglio è quello con meno vita
+                            const dannoFulmine = 3; // Valore d'esempio
+                            target.vitaAttuale -= dannoFulmine;
+                            logEvento(stato, `    - Fulmine colpisce ${target.cartaDef.nome} per ${dannoFulmine} danni (HP: ${target.vitaAttuale})`);
+                         }
+                    } else {
+                         logEvento(stato, `    - Effetto di ${carta.cartaDef.nome} non implementato! (Placeholder)`);
+                    }
+                    // --- FINE APPLICAZIONE EFFETTO ---
+                    attivo.carteScartate.push(carta.cartaDef); // Aggiungi carta usata agli scarti
+                    attivo.mano.splice(indiceCarta, 1); // Rimuovi dalla mano
+                    cartaGiocataEUscitaDallaMano = true; // Carta è stata rimossa
                 } else {
-                    logEvento(stato, `  > Fallito: Nessun bersaglio valido per ${carta.cartaDef.nome}`);
-                    carta.statoPotere = 'Bloccato'; // Marca per non riprovare questo turno
-                    // Lascia la carta, l'indice verrà incrementato sotto
+                    // Bersaglio non trovato o condizione non soddisfatta
+                    logEvento(stato, `  > Fallito: Nessun bersaglio/condizione per ${carta.cartaDef.nome}`);
+                    carta.statoPotere = 'Bloccato'; // Marca per non riprovare in questo turno
+                    // La carta resta in mano, l'indice incrementa sotto
                 }
             }
-        }
+        } // fine if preparazione === 0
 
-        // Incrementa l'indice SOLO se la carta NON è stata rimossa dalla mano
+        // Incrementa l'indice SOLO se la carta corrente NON è stata rimossa dalla mano.
+        // Se splice è stato chiamato, la prossima iterazione del while valuterà la carta
+        // che è slittata nella posizione 'indiceCarta'.
         if (!cartaGiocataEUscitaDallaMano) {
             indiceCarta++;
         }
-        // Altrimenti, il loop continua sullo stesso indice (che ora contiene la prossima carta)
-    }
+
+    } // Fine while mano
 }
 
 
@@ -192,102 +221,113 @@ function faseAttacco(stato: StatoPartita) {
     const { attivo, passivo } = getGiocatori(stato);
     const { campoAttivo, campoPassivo } = getCampi(stato);
     logEvento(stato, `G${attivo.id}: Fase Attacco.`);
-    let attacchiLog = "";
+    let attacchiLog = ""; // Log cumulativo per il turno
 
     for (let i = 0; i < MAX_UNITA_CAMPO; i++) {
         const attaccante = campoAttivo[i];
-        // L'unità attacca solo se esiste ed è viva
+
+        // L'unità attacca solo se è presente e viva
         if (attaccante && attaccante.vitaAttuale > 0) {
             const bersaglioUnita = campoPassivo[i];
-            let logRiga = `S${i}:${attaccante.cartaDef.nome.substring(0,3)}(${attaccante.vitaAttuale}HP)`;
+            const nomeAttaccante = attaccante.cartaDef.nome.substring(0, 3); // Nome corto
+            let logRiga = `S${i}:${nomeAttaccante}(${attaccante.vitaAttuale}HP)`;
 
+            // Controlla se c'è un'unità nemica viva nello slot opposto
             if (bersaglioUnita && bersaglioUnita.vitaAttuale > 0) {
-                // Attacca unità opposta
+                const nomeBersaglio = bersaglioUnita.cartaDef.nome.substring(0, 3);
                 const danno = attaccante.attaccoAttuale;
                 bersaglioUnita.vitaAttuale -= danno;
-                 logRiga += ` -> ${bersaglioUnita.cartaDef.nome.substring(0,3)}(${danno}d, ${bersaglioUnita.vitaAttuale}HP); `;
+                logRiga += ` -> ${nomeBersaglio}(${danno}d, ${bersaglioUnita.vitaAttuale}HP); `;
                 attacchiLog += logRiga;
+                // TODO: Gestire qui abilità come Rappresaglia del difensore
             } else {
-                // Slot opposto vuoto o unità morta, attacca l'Eroe avversario
+                // Altrimenti, attacca l'eroe nemico
                 const danno = attaccante.attaccoAttuale;
                 passivo.eroe.hpAttuali -= danno;
                 logRiga += ` -> EROE(${danno}d, ${passivo.eroe.hpAttuali}HP); `;
                 attacchiLog += logRiga;
 
-                // Controlla VITTORIA subito dopo attacco a eroe
-                if (passivo.eroe.hpAttuali <= 0) {
+                // Controllo KO immediato dell'eroe avversario
+                if (passivo.eroe.hpAttuali <= 0 && !stato.gameOver) {
                     stato.gameOver = true;
                     stato.vincitore = attivo.id;
                     logEvento(stato, `- Attacchi fino a sconfitta: ${attacchiLog}`);
                     logEvento(stato, `!!! EROE G${passivo.id} SCONFITTO! G${attivo.id} VINCE !!!`);
-                    return; // Esce subito dalla fase
+                    return; // Interrompi la fase di attacco
                 }
             }
-            // TODO: Logica per abilità speciali (es. doppio attacco?)
+            // TODO: Gestire qui abilità dell'attaccante (es. doppio attacco)
         }
     }
-    // Log compatto solo se ci sono stati attacchi effettivi
+    // Logga gli attacchi avvenuti solo se ce ne sono stati
     if (attacchiLog) logEvento(stato, `- Attacchi: ${attacchiLog.trim()}`);
 }
 
 function faseMorteEScorrimento(stato: StatoPartita) {
     stato.faseTurno = "Morte";
-    let qualcosaDaLoggare = false; // Per evitare di loggare la fase se non muore nulla
+    let siSonoVerificateMorti = false; // Flag per loggare la fase solo se serve
     let logMortiTotale = "";
 
-    // Processa entrambi i campi
+    // Ciclo sui due giocatori perché entrambe le parti possono subire morti
     for (const idGiocatoreProcessato of [1, 2]) {
-        const campoDaProcessare = idGiocatoreProcessato === 1 ? stato.campoG1 : stato.campoG2;
+        const campo = idGiocatoreProcessato === 1 ? stato.campoG1 : stato.campoG2;
         const giocatore = stato.giocatori.find(g => g.id === idGiocatoreProcessato)!;
-        let reCheckNeeded = true;
+        let ricontrollaQuestoCampo = true; // Flag per gestire morti a catena
         let logMortiGiocatore = "";
 
-        // Continua a controllare il campo finché non ci sono più morti da processare + scorrimenti
-        while (reCheckNeeded) {
-             reCheckNeeded = false; // Assume che non servirà un altro passaggio
-             for (let i = 0; i < MAX_UNITA_CAMPO; i++) {
-                 const unita = campoDaProcessare[i];
-                 if (unita && unita.vitaAttuale <= 0) {
-                     qualcosaDaLoggare = true;
-                     logMortiGiocatore += `${unita.cartaDef.nome.substring(0,10)}@S${i} `;
-                     // --- Attiva Effetto OnDeath (Placeholder) ---
-                     // console.log(`   - Effetto OnDeath ${unita.cartaDef.nome} (TODO)`);
-                     // -----------------------------------------
-                     giocatore.carteScartate.push(unita.cartaDef);
-                     campoDaProcessare[i] = null; // Rimuovi unità morta
+        // Continua a ciclare sullo stesso campo finché ci sono morti da processare
+        while (ricontrollaQuestoCampo) {
+            ricontrollaQuestoCampo = false; // Resetta il flag, si riattiva solo se troviamo un morto
+            // Scansiona il campo da sinistra a destra
+            for (let i = 0; i < MAX_UNITA_CAMPO; i++) {
+                const unita = campo[i];
+                if (unita && unita.vitaAttuale <= 0) { // Unità morta trovata
+                    siSonoVerificateMorti = true; // Indica che dobbiamo loggare la fase
+                    logMortiGiocatore += `${unita.cartaDef.nome.substring(0,10)}@S${i} `; // Logga l'unità morta
+                    // --- ATTIVAZIONE ON-DEATH (TODO) ---
+                    // Esempio: if (unita.cartaDef.haOnDeath) { attivaEffettoOnDeath(stato, unita); }
+                    // --- FINE ON-DEATH ---
+                    giocatore.carteScartate.push(unita.cartaDef); // Aggiungi definizione carta agli scarti
+                    campo[i] = null; // Rimuovi l'unità dal campo
 
-                     // --- Esegui SCORRIMENTO verso sinistra ---
-                     for (let j = i + 1; j < MAX_UNITA_CAMPO; j++) {
-                         if (campoDaProcessare[j]) {
-                             // Sposta l'unità dallo slot j allo slot j-1
-                             campoDaProcessare[j-1] = campoDaProcessare[j];
-                             // Aggiorna l'informazione dello slot interno all'oggetto UnitaInGioco
-                             campoDaProcessare[j-1]!.slot = j - 1;
-                             campoDaProcessare[j] = null; // Svuota lo slot originale
-                         } else {
-                              break; // Non ci sono altre unità a destra da spostare
-                         }
-                     }
-                     reCheckNeeded = true; // Una morte + scorrimento è avvenuta, serve ricontrollare il campo da capo
-                     break; // Interrompe il for interno per ricominciare il while(reCheckNeeded)
-                 }
-             } // Fine for interno (check slot i)
-        } // Fine while reCheckNeeded (controllo ripetuto dello stesso campo)
-         if(logMortiGiocatore) logMortiTotale += `Morti G${idGiocatoreProcessato}: ${logMortiGiocatore}; `;
-    } // Fine for esterno (per ogni giocatore)
+                    // --- SCORRIMENTO ---
+                    // Sposta tutte le unità alla destra dello slot liberato una posizione a sinistra
+                    for (let j = i + 1; j < MAX_UNITA_CAMPO; j++) {
+                        if (campo[j]) {
+                            campo[j - 1] = campo[j]; // Sposta riferimento unità
+                            campo[j - 1]!.slot = j - 1; // Aggiorna slot interno all'oggetto unità
+                            campo[j] = null; // Libera slot originale
+                        } else {
+                            break; // Non ci sono più unità a destra da spostare
+                        }
+                    }
+                    ricontrollaQuestoCampo = true; // Abbiamo modificato il campo, serve riesaminarlo dall'inizio
+                    break; // Interrompe il 'for' interno e fa ripartire il 'while' per riesaminare
+                }
+            } // Fine for slot i
+        } // Fine while ricontrollaCampo
+        if (logMortiGiocatore) logMortiTotale += `Morti G${idGiocatoreProcessato}: ${logMortiGiocatore}; `;
+    } // Fine for idGiocatoreProcessato
 
-    if(qualcosaDaLoggare) {
-         logEvento(stato, `Sistema: Fase Morte & Scorrimento Completata.`);
-         if(logMortiTotale) logEvento(stato, `- ${logMortiTotale.trim()}`);
+    // Logga solo se sono avvenute morti
+    if (siSonoVerificateMorti) {
+        logEvento(stato, `Sistema: Fase Morte & Scorrimento.`);
+        if (logMortiTotale) logEvento(stato, `- ${logMortiTotale.trim()}`);
     }
 
-    // Controllo Vittoria finale post-morte (effetti OnDeath potrebbero aver inflitto danno fatale)
-     if (!stato.gameOver) {
-        if (stato.giocatori[0].eroe.hpAttuali <= 0) {
-           stato.gameOver = true; stato.vincitore = 2;
+    // Controllo vittoria post-morte (es. effetti onDeath) - importante farlo dopo aver processato entrambi i campi
+     if (!stato.gameOver) { // Controlla solo se la partita non è già finita
+        const hpG1 = stato.giocatori[0].eroe.hpAttuali;
+        const hpG2 = stato.giocatori[1].eroe.hpAttuali;
+        // Gestisce anche il caso raro di KO simultaneo
+        if (hpG1 <= 0 && hpG2 <= 0) {
+            stato.gameOver = true; stato.vincitore = null; // Pareggio
+            logEvento(stato, `!!! ENTRAMBI GLI EROI SCONFITTI (post-morte)! PAREGGIO !!!`);
+        } else if (hpG1 <= 0) {
+           stato.gameOver = true; stato.vincitore = 2; // G1 è KO, vince G2
            logEvento(stato, `!!! EROE G1 SCONFITTO (post-morte)! G2 VINCE !!!`);
-        } else if (stato.giocatori[1].eroe.hpAttuali <= 0) {
-           stato.gameOver = true; stato.vincitore = 1;
+        } else if (hpG2 <= 0) {
+           stato.gameOver = true; stato.vincitore = 1; // G2 è KO, vince G1
            logEvento(stato, `!!! EROE G2 SCONFITTO (post-morte)! G1 VINCE !!!`);
         }
      }
@@ -298,40 +338,40 @@ function faseFineTurno(stato: StatoPartita) {
     stato.faseTurno = "FineTurno";
     const { attivo } = getGiocatori(stato);
 
-    // Scarto carte in eccesso alla mano
+    // Scarto per mano piena (limite MAX_CARTE_MANO)
     if (attivo.mano.length > MAX_CARTE_MANO) {
         logEvento(stato, `G${attivo.id}: Mano piena (${attivo.mano.length} > ${MAX_CARTE_MANO}), scarto carte...`);
-        // Crea un array di oggetti con carta e indice originale per lo sorting secondario
+        // Crea un array [carta, indiceOriginale] per ordinamento stabile
         const manoConIndice = attivo.mano.map((carta, index) => ({ carta, index }));
-        // Ordina per scartare: prima preparazione più alta, poi indice più alto (destra)
+        // Ordina: 1. Preparazione decrescente, 2. Indice decrescente (più a destra)
         manoConIndice.sort((a, b) => {
             if (b.carta.preparazioneAttuale !== a.carta.preparazioneAttuale) {
-                return b.carta.preparazioneAttuale - a.carta.preparazioneAttuale; // Preparazione più alta prima
+                return b.carta.preparazioneAttuale - a.carta.preparazioneAttuale;
             }
-            return b.index - a.index; // A parità, indice più alto (più a destra) prima
+            return b.index - a.index;
         });
 
         const numeroCarteDaScartare = attivo.mano.length - MAX_CARTE_MANO;
-        const idUniciDaScartare = new Set<number>(); // Tiene traccia degli ID istanza da scartare
+        const idIstanzeDaScartare = new Set<number>(); // Usa ID istanza per rimuovere correttamente
         let logScarto = "";
         for (let i = 0; i < numeroCarteDaScartare; i++) {
-            const { carta } = manoConIndice[i]; // Prende la carta da scartare in base all'ordine sortato
-             logScarto += `${carta.cartaDef.nome.substring(0,10)}(P${carta.preparazioneAttuale}) `;
-            attivo.carteScartate.push(carta.cartaDef); // Aggiungi al cimitero
-            idUniciDaScartare.add(carta.idIstanzaUnica); // Aggiungi il suo ID unico al set da rimuovere
+            const { carta } = manoConIndice[i]; // Prendi la carta dall'array ordinato
+            logScarto += `${carta.cartaDef.nome.substring(0,10)}(P${carta.preparazioneAttuale}) `;
+            attivo.carteScartate.push(carta.cartaDef); // Aggiungi definizione carta al cimitero
+            idIstanzeDaScartare.add(carta.idIstanzaUnica); // Aggiungi il suo ID al set da rimuovere
         }
-        if(logScarto) logEvento(stato, ` > Scarta: ${logScarto.trim()}`);
-        // Filtra la mano attuale rimuovendo le carte i cui ID sono nel set
-        attivo.mano = attivo.mano.filter(c => !idUniciDaScartare.has(c.idIstanzaUnica));
+        if (logScarto) logEvento(stato, ` > Scarta: ${logScarto.trim()}`);
+        // Filtra la mano mantenendo solo le carte il cui ID non è nel set da scartare
+        attivo.mano = attivo.mano.filter(c => !idIstanzeDaScartare.has(c.idIstanzaUnica));
     }
 
-    // Reset dello stato 'Bloccato' dei poteri rimasti in mano alla fine del turno del giocatore.
-    // Saranno rivalutati all'inizio della sua prossima fase GiocoCarte.
-    attivo.mano.forEach(carta => {
-        if(carta.statoPotere === 'Bloccato') {
+    // Reset dello stato 'Bloccato' sui Poteri rimasti in mano.
+    // Saranno rivalutati nella prossima fase GiocoCarte del giocatore.
+    for (const carta of attivo.mano) {
+        if (carta.statoPotere === 'Bloccato') {
             delete carta.statoPotere;
         }
-    });
+    }
 
     logEvento(stato, `Fine Turno G${attivo.id}. Mano: ${attivo.mano.length}`);
 }
@@ -340,92 +380,93 @@ function faseFineTurno(stato: StatoPartita) {
 export function avviaSimulazioneCompleta(params: SimulationParams): StatoPartita {
     const { mazzoDefG1, mazzoDefG2, hpInizialiEroe = HP_EROE_DEFAULT } = params;
 
-    // Validazione base dei mazzi
+    // Validazione Input Base
     if (!mazzoDefG1 || mazzoDefG1.length === 0 || !mazzoDefG2 || mazzoDefG2.length === 0) {
-        // Restituisce uno stato di errore invece di lanciare eccezione per UI migliore
+         const errorLog = "Errore: Impossibile avviare la simulazione, mazzi non validi o vuoti.";
+         // Ritorna uno stato minimo di errore
          return {
              turnoAttuale: 0, idGiocatoreAttivo: 1, faseTurno: "ErroreSetup",
-             giocatori: [{ id: 1, eroe: { idGiocatore: 1, hpAttuali: 0, hpMax: 0}, mano: [], mazzoRimanente: [], carteScartate: [], contatoreFatica: 0 }, { id: 2, eroe: { idGiocatore: 2, hpAttuali: 0, hpMax: 0}, mano: [], mazzoRimanente: [], carteScartate: [], contatoreFatica: 0 }],
-             campoG1: [], campoG2: [], eventiLog: ["Errore: Impossibile avviare la simulazione, mazzi non validi."],
-             gameOver: true, vincitore: null, prossimoIdIstanzaUnica: 1, primoTurnoP1Saltato: false
+             giocatori: [
+                 { id: 1, eroe: { idGiocatore: 1, hpAttuali: 0, hpMax: hpInizialiEroe}, mano: [], mazzoRimanente: [], carteScartate: [], contatoreFatica: 0 },
+                 { id: 2, eroe: { idGiocatore: 2, hpAttuali: 0, hpMax: hpInizialiEroe}, mano: [], mazzoRimanente: [], carteScartate: [], contatoreFatica: 0 }
+             ],
+             campoG1: Array(MAX_UNITA_CAMPO).fill(null), campoG2: Array(MAX_UNITA_CAMPO).fill(null),
+             eventiLog: [errorLog], gameOver: true, vincitore: null, prossimoIdIstanzaUnica: 1, primoTurnoP1Saltato: false
          };
     }
 
     // Inizializzazione Stato Partita
     const statoIniziale: StatoPartita = {
-        turnoAttuale: 0,
-        idGiocatoreAttivo: Math.random() < 0.5 ? 1 : 2, // Chi inizia
+        turnoAttuale: 0, // Turno 0 è la preparazione, il gioco inizia al turno 1
+        idGiocatoreAttivo: Math.random() < 0.5 ? 1 : 2,
         faseTurno: "InizioPartita",
         giocatori: [
-            // Giocatore 1
             { id: 1, eroe: { idGiocatore: 1, hpAttuali: hpInizialiEroe, hpMax: hpInizialiEroe }, mano: [], mazzoRimanente: shuffleArray([...mazzoDefG1]), carteScartate: [], contatoreFatica: 0 },
-            // Giocatore 2
             { id: 2, eroe: { idGiocatore: 2, hpAttuali: hpInizialiEroe, hpMax: hpInizialiEroe }, mano: [], mazzoRimanente: shuffleArray([...mazzoDefG2]), carteScartate: [], contatoreFatica: 0 }
         ],
-        campoG1: Array(MAX_UNITA_CAMPO).fill(null), // Campo G1 inizialmente vuoto
-        campoG2: Array(MAX_UNITA_CAMPO).fill(null), // Campo G2 inizialmente vuoto
+        campoG1: Array(MAX_UNITA_CAMPO).fill(null),
+        campoG2: Array(MAX_UNITA_CAMPO).fill(null),
         eventiLog: [`--- Partita Iniziata (HP Eroi: ${hpInizialiEroe}) ---`],
-        gameOver: false,
-        vincitore: null,
-        prossimoIdIstanzaUnica: 1, // Contatore per ID unici
-        primoTurnoP1Saltato: false, // Flag per G1 che salta la prima pesca
+        gameOver: false, vincitore: null, prossimoIdIstanzaUnica: 1, primoTurnoP1Saltato: false,
     };
-
     logEvento(statoIniziale, `Giocatore ${statoIniziale.idGiocatoreAttivo} inizia.`);
 
-    // Creazione di una copia profonda per evitare mutazioni accidentali
-    // NOTA: JSON.parse/stringify è semplice ma non gestisce Date, function, undefined (anche se qui non dovremmo averne nei dati critici)
+    // Clonazione dello Stato Iniziale per la Simulazione
     let stato: StatoPartita;
     try {
+         // Usiamo JSON parse/stringify per una deep copy semplice (attenzione a tipi non JSON standard se li aggiungi)
          stato = JSON.parse(JSON.stringify(statoIniziale));
     } catch(e) {
-        console.error("Errore durante deep copy dello stato:", e);
-         // Ritorna stato di errore
-         statoIniziale.eventiLog.push("Errore interno durante l'inizializzazione dello stato.");
-         statoIniziale.gameOver = true;
-         return statoIniziale;
+        console.error("Errore critico durante la clonazione dello stato iniziale:", e);
+        statoIniziale.eventiLog.push("Errore interno motore: impossibile clonare stato iniziale.");
+        statoIniziale.gameOver = true;
+        return statoIniziale; // Ritorna stato con errore
     }
 
-
     // --- FASE INIZIO BATTAGLIA ---
-    // TODO: Risolvere effetti "Inizio Battaglia" di Eroi/Equipaggiamenti qui
-    logEvento(stato, `Sistema: Fase Inizio Battaglia (TODO)`);
+    // TODO: Risolvere eventuali effetti "Inizio Battaglia" qui
+    logEvento(stato, `Sistema: Fase Inizio Battaglia (Nessun effetto implementato).`);
 
     // --- CICLO PRINCIPALE DEI TURNI ---
     while (!stato.gameOver && stato.turnoAttuale < MAX_TURNI) {
-        // Incrementa il turno PRIMA delle fasi
+        // Incrementa il contatore del turno all'inizio del ciclo
         stato.turnoAttuale++;
 
-        // --- FASI DEL TURNO GIOCATORE ATTIVO ---
+        // Esegui le fasi sequenzialmente per il giocatore attivo
         faseInizioTurno(stato);
-        fasePesca(stato);               if (stato.gameOver) break; // Fatica potrebbe terminare la partita
+        fasePesca(stato);               if (stato.gameOver) break; // Fatica può causare KO
         fasePreparazione(stato);
-        faseGiocoCarte(stato);        // Qui vengono schierate unità/lanciati poteri
-        faseAttacco(stato);             if (stato.gameOver) break; // Attacchi possono terminare la partita
-        faseMorteEScorrimento(stato);   if (stato.gameOver) break; // Effetti OnDeath potrebbero terminare la partita
-        faseFineTurno(stato);           // Gestione scarto mano piena
+        faseGiocoCarte(stato);          // Carte vengono giocate qui
+        faseAttacco(stato);             if (stato.gameOver) break; // Attacchi possono causare KO
+        faseMorteEScorrimento(stato);   if (stato.gameOver) break; // Morti/OnDeath possono causare KO
+        faseFineTurno(stato);           // Scarto per mano piena e cleanup
 
-        // Passaggio del turno all'altro giocatore alla fine di tutte le fasi
-        stato.idGiocatoreAttivo = stato.idGiocatoreAttivo === 1 ? 2 : 1;
-
+        // Passaggio del turno SOLO se la partita non è già terminata
+        if (!stato.gameOver) {
+            stato.idGiocatoreAttivo = stato.idGiocatoreAttivo === 1 ? 2 : 1;
+        }
     } // --- Fine ciclo while ---
 
-    // --- FINE PARTITA (Controllo post-loop) ---
-    if (!stato.gameOver) { // Se non già finita per KO o fatica...
-        if (stato.turnoAttuale >= MAX_TURNI) { // ...controlla se è per limite turni
+    // --- RISOLUZIONE FINE PARTITA (Post-Loop) ---
+    if (!stato.gameOver) { // Se esce dal loop senza un vincitore...
+        if (stato.turnoAttuale >= MAX_TURNI) { // ...è per limite turni
             stato.gameOver = true;
             logEvento(stato, `!!! Limite Turni (${MAX_TURNI}) Raggiunto!`);
-            // Determina vincitore per HP Eroe
-            const hpG1 = stato.giocatori.find(g => g.id === 1)!.eroe.hpAttuali;
-            const hpG2 = stato.giocatori.find(g => g.id === 2)!.eroe.hpAttuali;
+            // Determina vincitore in base agli HP
+            const hpG1 = stato.giocatori[0].eroe.hpAttuali;
+            const hpG2 = stato.giocatori[1].eroe.hpAttuali;
             if (hpG1 > hpG2) stato.vincitore = 1;
             else if (hpG2 > hpG1) stato.vincitore = 2;
-            else stato.vincitore = null; // Pareggio per HP uguali
-            logEvento(stato, `Vincitore per HP ai punti: ${stato.vincitore ? `Giocatore ${stato.vincitore}` : 'Pareggio'}`);
+            else stato.vincitore = null; // Pareggio per HP
+            logEvento(stato, `Vincitore per HP: ${stato.vincitore !== null ? `Giocatore ${stato.vincitore}` : 'Pareggio'}`);
+        } else {
+            // Situazione imprevista se esce dal loop prima del limite turni senza gameOver = true
+            logEvento(stato, `Attenzione: Uscita dal loop principale inaspettata al turno ${stato.turnoAttuale}.`);
+             stato.gameOver = true;
+             stato.vincitore = null; // Default a pareggio in caso di errore?
         }
-        // Aggiungere altre condizioni di fine partita qui se necessario (es. combo specifiche?)
     }
 
     logEvento(stato, `--- PARTITA TERMINATA --- ${stato.vincitore !== null ? `VINCITORE: Giocatore ${stato.vincitore}` : 'PAREGGIO'}`);
-    return stato;
+    return stato; // Restituisce lo stato finale della partita
 }

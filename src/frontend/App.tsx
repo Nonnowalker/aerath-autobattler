@@ -1,8 +1,8 @@
 // src/frontend/App.tsx
 import React, { useState, useEffect } from 'react';
-import CombatLogDisplay from './components/CombatLogDisplay';
-import CardList from './components/CardList';
-import CardCreatorForm from './components/CardCreatorForm';
+import CombatLogDisplay from './components/CombatLogDisplay.js';
+import CardList from './components/CardList.js';
+import CardCreatorForm from './components/CardCreatorForm.js';
 import { avviaSimulazioneCompleta, SimulationParams, StatoPartita } from '../simulation/engine.js'; // Importa con .js
 import { CartaDef as SimulationCard } from '../simulation/types.js'; // Importa con .js e rinomina
 import './styles/main.scss';
