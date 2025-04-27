@@ -1,5 +1,5 @@
 import React from 'react';
-import { ApiCard } from '../App'; // Assumendo che ApiCard sia esportata o definita qui
+import { ApiCard } from '../App.js'; // Assumendo che ApiCard sia esportata o definita qui
 
 interface CardListProps {
     cards: ApiCard[];

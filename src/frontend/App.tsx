@@ -13,7 +13,7 @@ export interface ApiCard {
     id: number; // ID numerico del DB
     dbId: string; // ID stringa logico univoco
     nome: string;
-    tipo: 'Unita' | 'Potere';
+    tipo: 'Unità' | 'Potere';
     attacco: number | null; // Nullable se non applicabile (Poteri)
     vita: number | null; // Nullable se non applicabile (Poteri)
     punteggioPreparazioneIniziale: number;

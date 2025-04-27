@@ -48,7 +48,7 @@ app.post('/api/cards', async (req, res) => {
       return res.status(400).json({ error: 'Campi obbligatori (dbId, nome, tipo, punteggioPreparazioneIniziale) mancanti.' });
   }
   // 2. Tipo Valido
-  if (tipo !== 'Unita' && tipo !== 'Potere') {
+  if (tipo !== 'Unità' && tipo !== 'Potere') {
      return res.status(400).json({ error: 'Il campo "tipo" deve essere "Unita" o "Potere".' });
   }
   // 3. Valori numerici
@@ -66,7 +66,7 @@ app.post('/api/cards', async (req, res) => {
      return res.status(400).json({ error: 'Vita non valida.' });
   }
   // 4. Logica specifica tipo (es. Unita DEVE avere vita/attacco?)
-  if (tipo === 'Unita' && (atk === null || hp === null)) {
+  if (tipo === 'Unità' && (atk === null || hp === null)) {
       return res.status(400).json({ error: 'Le Unità devono avere valori per attacco e vita.' });
   }
 

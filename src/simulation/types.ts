@@ -4,7 +4,7 @@
 export interface CartaDef {
   id: string;
   nome: string;
-  tipo: 'Unita' | 'Potere';
+  tipo: 'Unità' | 'Potere';
   attacco?: number;
   vita?: number;
   punteggioPreparazioneIniziale: number;

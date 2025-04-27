@@ -137,7 +137,7 @@ function faseGiocoCarte(stato: StatoPartita): void {
             logEvento(stato, `- Tentativo gioco: ${carta.cartaDef.nome} (ID: ${carta.idIstanzaUnica})`);
 
             // Logica specifica per tipo di carta
-            if (carta.cartaDef.tipo === 'Unita') {
+            if (carta.cartaDef.tipo === 'Unità') {
                 // Tenta di trovare uno slot libero sul campo del giocatore attivo
                 const slotLibero = campoAttivo.findIndex(slot => slot === null); // Usa comparazione stretta con null
 
