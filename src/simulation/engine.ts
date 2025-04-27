@@ -100,94 +100,174 @@ function fasePreparazione(stato: StatoPartita) {
     if (logPrep) logEvento(stato, `- Prep: ${logPrep.trim()}`);
 }
 
-function faseGiocoCarte(stato: StatoPartita) {
+// Import necessari all'inizio del file engine.ts (assicurati siano presenti)
+import {
+    StatoPartita,
+    StatoGiocatore, // Assicurati che sia importato se non lo è già
+    UnitaInGioco,
+    CartaInMano
+    // Aggiungi getGiocatori e getCampi se sono in un file separato
+    // Aggiungi MAX_UNITA_CAMPO se definita come costante
+} from './types.js';
+
+// Assicurati che getGiocatori, getCampi e logEvento siano definite o importate correttamente
+// Esempio dichiarazione fittizia se non importate:
+// declare function getGiocatori(stato: StatoPartita): { attivo: StatoGiocatore, passivo: StatoGiocatore };
+// declare function getCampi(stato: StatoPartita): { campoAttivo: (UnitaInGioco | null)[], campoPassivo: (UnitaInGioco | null)[] };
+// declare function logEvento(stato: StatoPartita, messaggio: string): void;
+// declare const MAX_UNITA_CAMPO: number;
+
+
+// --- Funzione Fase Gioco Carte ---
+
+function faseGiocoCarte(stato: StatoPartita): void {
     stato.faseTurno = "GiocoCarte";
     const { attivo } = getGiocatori(stato);
-    const { campoAttivo } = getCampi(stato);
+    const { campoAttivo } = getCampi(stato); // Ottiene il riferimento corretto a stato.campoG1 o stato.campoG2
     logEvento(stato, `G${attivo.id}: Fase Gioco Carte (Mano: ${attivo.mano.length})`);
 
     let indiceCarta = 0;
+    // Usiamo un ciclo while perché la lunghezza dell'array `attivo.mano` può cambiare durante l'iterazione (a causa di splice)
     while (indiceCarta < attivo.mano.length) {
         const carta = attivo.mano[indiceCarta];
-        let cartaGiocataEUscitaDallaMano = false;
+        let cartaGiocataEUscitaDallaMano = false; // Flag per sapere se l'indice va incrementato
 
+        // Condizione principale: la carta è pronta (prep=0) e non è stata già bloccata in questo turno?
         if (carta.preparazioneAttuale === 0 && carta.statoPotere !== 'Bloccato') {
             logEvento(stato, `- Tentativo gioco: ${carta.cartaDef.nome} (ID: ${carta.idIstanzaUnica})`);
 
+            // Logica specifica per tipo di carta
             if (carta.cartaDef.tipo === 'Unita') {
-                
-                console.log(`>>> FGC Check Unità: ${carta.cartaDef.nome} Prep 0. Ispeziono campoAttivo...`);
-                console.log(`>>> Contenuto campoAttivo: [${campoAttivo.map(s => `${JSON.stringify(s)}(${typeof s})`).join(', ')}]`); // Logga valore e tipo di ogni slot
-                console.log(`>>> ID Giocatore Attivo: ${attivo.id}, Array Referenziato: ${attivo.id === 1 ? 'stato.campoG1' : 'stato.campoG2'}`) // Verifica quale array stiamo guardando
+                // Tenta di trovare uno slot libero sul campo del giocatore attivo
+                const slotLibero = campoAttivo.findIndex(slot => slot === null); // Usa comparazione stretta con null
 
-                const slotLibero = campoAttivo.findIndex(slot => slot === null); // Torniamo al check stretto
-                console.log(`>>> Risultato findIndex(slot => slot === null): slotLibero = ${slotLibero}`);
-
-                if (slotLibero !== -1) {
-                    console.log(">>> CONDIZIONE if (slotLibero !== -1) SODDISFATTA! Procedo a schierare.") // <-- VEDIAMO QUESTO?
-                    const nuovaUnita: UnitaInGioco = { /* ... */ };
-                    campoAttivo[slotLibero] = nuovaUnita;
-                    attivo.mano.splice(indiceCarta, 1);
-                    logEvento(stato, `  > G${attivo.id}: Schiera ${nuovaUnita.cartaDef.nome} nello slot ${slotLibero}`);
-                    cartaGiocataEUscitaDallaMano = true;
-                    continue;
-                } else {
-                    console.log(">>> CONDIZIONE if (slotLibero !== -1) FALLITA.") // <-- O VEDIAMO QUESTO?
-                    logEvento(stato, `  > Fallito: Campo pieno per ${carta.cartaDef.nome}`);
-                }
-
-                if (slotLibero !== -1) {
+                if (slotLibero !== -1) { // Slot trovato! (Indice valido da 0 a MAX_UNITA_CAMPO - 1)
+                    // Crea l'oggetto UnitaInGioco con i dati della carta
                     const nuovaUnita: UnitaInGioco = {
-                         idIstanzaUnica: carta.idIstanzaUnica, cartaDef: carta.cartaDef,
-                         idGiocatore: attivo.id, slot: slotLibero,
-                         vitaAttuale: carta.cartaDef.vita!, attaccoAttuale: carta.cartaDef.attacco!,
-                     };
+                        idIstanzaUnica: carta.idIstanzaUnica, // Mantiene ID unico
+                        cartaDef: carta.cartaDef,             // Riferimento alla definizione base
+                        idGiocatore: attivo.id,                 // Il giocatore che schiera
+                        slot: slotLibero,                       // Lo slot trovato
+                        // Prende HP/ATK dalla definizione, fornendo un default > 0 per robustezza
+                        vitaAttuale: carta.cartaDef.vita ?? 1,
+                        attaccoAttuale: carta.cartaDef.attacco ?? 0,
+                        // Qui si potrebbero aggiungere altre proprietà iniziali dell'unità se necessario
+                    };
+
+                    // Posiziona l'unità nell'array del campo (questo modifica stato.campoG1 o stato.campoG2)
                     campoAttivo[slotLibero] = nuovaUnita;
+                    // Rimuove la carta giocata dall'array della mano
                     attivo.mano.splice(indiceCarta, 1);
                     logEvento(stato, `  > G${attivo.id}: Schiera ${nuovaUnita.cartaDef.nome} nello slot ${slotLibero}`);
-                    cartaGiocataEUscitaDallaMano = true;
-                    continue;
+                    cartaGiocataEUscitaDallaMano = true; // Carta rimossa, il flag lo segnala
+
+                    // NON si incrementa indiceCarta qui, perché dopo splice,
+                    // la prossima carta da controllare è già all'indice corrente.
+                    // Si riparte con il check del while.
+
                 } else {
+                    // Non è stato trovato nessuno slot libero (findIndex ha restituito -1)
                     logEvento(stato, `  > Fallito: Campo pieno per ${carta.cartaDef.nome}`);
+                    // La carta non viene giocata, resta in mano. L'indice verrà incrementato sotto.
                 }
             }
             else if (carta.cartaDef.tipo === 'Potere') {
-                 let bersaglioValidoTrovato = false;
-                  if (carta.cartaDef.id === 'fulmine_improvviso') {
-                     const nemiciVivi = getCampi(stato).campoPassivo.filter(u => u !== null && u.vitaAttuale > 0);
-                     if (nemiciVivi.length > 0) bersaglioValidoTrovato = true;
-                 } else { bersaglioValidoTrovato = true; }
+                // Logica per gestire il lancio di Poteri
+                let bersaglioValidoTrovato = false; // Assume falso finché le condizioni non sono verificate
 
+                // --- Implementazione Logica Bersagli/Condizioni per ciascun potere ---
+                // Questo blocco switch (o if/else if) deve contenere la logica specifica per ogni Potere
+                switch (carta.cartaDef.id) {
+                    case 'fulmine_improvviso': { // Logica specifica per questa carta
+                        // Condizione: C'è almeno un'unità nemica viva sul campo?
+                        const nemiciVivi = getCampi(stato).campoPassivo.filter(u => u !== null && u.vitaAttuale > 0);
+                        if (nemiciVivi.length > 0) {
+                            bersaglioValidoTrovato = true; // Condizione soddisfatta
+                        }
+                        break; // Esce dallo switch dopo aver gestito questo ID
+                    }
+                    // case 'altra_carta_potere_id': {
+                    //     // Implementa qui le condizioni per un altro potere...
+                    //     bersaglioValidoTrovato = true; // o false
+                    //     break;
+                    // }
+                    default: {
+                        // Comportamento di default per poteri non specificamente gestiti
+                        // Potrebbe essere sempre vero (si lancia sempre), o sempre falso, o basato su tag/keywords
+                        logEvento(stato, `    - Avviso: Condizione di lancio per ${carta.cartaDef.nome} non specificata, assume possa lanciare.`);
+                        bersaglioValidoTrovato = true; // Default temporaneo
+                        break;
+                    }
+                }
+                // --- Fine Logica Bersagli/Condizioni ---
+
+                // Agisci in base al risultato del check bersaglio
                 if (bersaglioValidoTrovato) {
                     logEvento(stato, `  > G${attivo.id}: Lancia ${carta.cartaDef.nome}`);
-                    if (carta.cartaDef.id === 'fulmine_improvviso') {
-                         const nemiciViviOrdinati = (getCampi(stato).campoPassivo.filter(u => u && u.vitaAttuale > 0) as UnitaInGioco[]).sort((a,b)=> a.vitaAttuale - b.vitaAttuale);
-                          if(nemiciViviOrdinati.length > 0){
-                              const target = nemiciViviOrdinati[0];
-                              const danno = 3;
-                              target.vitaAttuale -= danno;
-                              logEvento(stato, `    - Colpisce ${target.cartaDef.nome} per ${danno} (HP: ${target.vitaAttuale})`);
-                          } else {
-                              logEvento(stato, `    - Effetto Fulmine fallito (nessun nemico vivo trovato?)`); // Log di sicurezza
-                          }
-                    } else { logEvento(stato, `    - Effetto di ${carta.cartaDef.nome} non implementato!`); }
-                    attivo.carteScartate.push(carta.cartaDef);
-                    attivo.mano.splice(indiceCarta, 1);
-                    cartaGiocataEUscitaDallaMano = true;
-                    continue;
-                } else {
-                    logEvento(stato, `  > Fallito: Nessun bersaglio valido per ${carta.cartaDef.nome}`);
-                    carta.statoPotere = 'Bloccato';
-                }
-            }
-        }
 
+                    // --- APPLICAZIONE EFFETTO POTERE REALE ---
+                    // Anche qui, logica specifica per ID carta
+                    switch (carta.cartaDef.id) {
+                        case 'fulmine_improvviso': {
+                            const { campoPassivo } = getCampi(stato); // Prendi il campo avversario
+                            const nemiciViviOrdinati = (campoPassivo
+                                .filter(u => u && u.vitaAttuale > 0) as UnitaInGioco[])
+                                .sort((a, b) => a.vitaAttuale - b.vitaAttuale); // Ordina per vita
+
+                            if (nemiciViviOrdinati.length > 0) {
+                                const target = nemiciViviOrdinati[0]; // Prende quello con meno vita
+                                const danno = 3; // Valore dell'effetto
+                                target.vitaAttuale -= danno;
+                                logEvento(stato, `    - Colpisce ${target.cartaDef.nome} per ${danno} danni (HP: ${target.vitaAttuale})`);
+                                // NON serve gestire la morte qui, lo farà la faseMorteEScorrimento
+                            } else {
+                                logEvento(stato, `    - Effetto Fulmine non applicato (nessun nemico vivo trovato).`);
+                            }
+                            break;
+                        }
+                        // case 'altra_carta_potere_id': {
+                        //     // Applica qui l'effetto dell'altro potere...
+                        //     break;
+                        // }
+                        default: {
+                            logEvento(stato, `    - Effetto di ${carta.cartaDef.nome} non implementato!`);
+                            break;
+                        }
+                    }
+                    // --- FINE APPLICAZIONE EFFETTO ---
+
+                    attivo.carteScartate.push(carta.cartaDef); // Il potere usato va nel cimitero
+                    attivo.mano.splice(indiceCarta, 1); // Rimuove la carta dalla mano
+                    cartaGiocataEUscitaDallaMano = true; // Carta rimossa
+
+                    // NON si incrementa indiceCarta
+
+                } else {
+                    // Bersaglio/Condizione non valido/a
+                    logEvento(stato, `  > Fallito: Nessun bersaglio/condizione per ${carta.cartaDef.nome}`);
+                    carta.statoPotere = 'Bloccato'; // Marca per non riprovare in questo turno
+                    // L'indice verrà incrementato sotto
+                }
+            } else {
+                 // Se il tipo non è 'Unita' né 'Potere' (non dovrebbe accadere con i tipi attuali)
+                 console.error(`[ERRORE] Tipo carta sconosciuto incontrato: ${String(carta.cartaDef.tipo)}`);
+                  // L'indice verrà incrementato sotto per evitare loop infiniti
+            }
+        } // Fine if carta.preparazioneAttuale === 0
+
+        // Incrementa l'indice per passare alla carta successiva nella mano
+        // SOLO se la carta all'indice corrente NON è stata rimossa (splice).
         if (!cartaGiocataEUscitaDallaMano) {
             indiceCarta++;
         }
-    }
+        // Altrimenti, il loop while continuerà con lo stesso valore di indiceCarta,
+        // esaminando la prossima carta che è slittata in quella posizione.
+
+    } // Fine while (indiceCarta < attivo.mano.length)
 }
 
+// NON includere qui il resto di engine.ts (altre fasi, funzione principale, etc.)
+// Questo è SOLO il codice della funzione faseGiocoCarte.
 
 function faseAttacco(stato: StatoPartita) {
     stato.faseTurno = "Attacco";
