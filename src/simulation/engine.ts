@@ -52,7 +52,7 @@ function faseInizioTurno(stato: StatoPartita) {
 
 function fasePesca(stato: StatoPartita) {
     stato.faseTurno = "Pesca";
-    const { attivo } = getGiocatori(stato);
+    const { attivo } = getGiocatori(stato); // CORREZIONE: Definire 'attivo' qui
 
     if (stato.turnoAttuale === 1 && stato.idGiocatoreAttivo === 1 && !stato.primoTurnoP1Saltato) {
         logEvento(stato, `G${attivo.id}: Salta la pesca del primo turno.`);
@@ -83,9 +83,10 @@ function fasePesca(stato: StatoPartita) {
     }
 }
 
+
 function fasePreparazione(stato: StatoPartita) {
     stato.faseTurno = "Preparazione";
-    const { attivo } = getGiocatori(stato);
+    const { attivo } = getGiocatori(stato); // Definisci 'attivo'
     logEvento(stato, `G${attivo.id}: Fase Preparazione.`);
     let logPrep = "" // Log più conciso
     for (const carta of attivo.mano) {
@@ -104,67 +105,75 @@ function fasePreparazione(stato: StatoPartita) {
     if (logPrep) logEvento(stato, `- Prep: ${logPrep.trim()}`);
 }
 
-// DENTRO LA FUNZIONE faseGiocoCarte
+function faseGiocoCarte(stato: StatoPartita) {
+    stato.faseTurno = "GiocoCarte";
+    const { attivo } = getGiocatori(stato); // Definisci 'attivo'
+    const { campoAttivo } = getCampi(stato); // Definisci 'campoAttivo'
+    logEvento(stato, `G${attivo.id}: Fase Gioco Carte (Mano: ${attivo.mano.length})`);
 
-let indiceCarta = 0;
-while (indiceCarta < attivo.mano.length) {
-    const carta = attivo.mano[indiceCarta];
-    console.log(`[ULTRA DEBUG] Check Idx: ${indiceCarta}, Carta: ${carta?.cartaDef?.nome}, Prep: ${carta?.preparazioneAttuale}, Tipo: ${carta?.cartaDef?.tipo}`);
+    let indiceCarta = 0;
+    while (indiceCarta < attivo.mano.length) {
+        const carta = attivo.mano[indiceCarta];
+        console.log(`[ULTRA DEBUG] Check Idx: ${indiceCarta}, Carta: ${carta?.cartaDef?.nome}, Prep: ${carta?.preparazioneAttuale}, Tipo: ${carta?.cartaDef?.tipo}`);
 
-    let cartaGiocataEUscitaDallaMano = false;
+        let cartaGiocataEUscitaDallaMano = false;
 
-    if (carta.preparazioneAttuale === 0) {
-        logEvento(stato, `- Tentativo gioco (Prep=0): ${carta.cartaDef.nome}`);
+        if (carta.preparazioneAttuale === 0) {
+            logEvento(stato, `- Tentativo gioco (Prep=0): ${carta.cartaDef.nome}`);
 
-        if (carta.cartaDef.tipo === 'Unita') {
-             console.log("[ULTRA DEBUG] Carta è Unità a Prep 0!");
-             // --- FORZA TEMPORANEAMENTE LO SCHIERAMENTO (SOLO PER DEBUG!) ---
-             const slotLiberoForzato = 0; // Tentiamo sempre lo slot 0
-             console.log(`[ULTRA DEBUG] Tentativo forzato slot ${slotLiberoForzato}. Campo prima:`, JSON.stringify(campoAttivo.map(u => u?.cartaDef.nome ?? null)));
-             const nuovaUnita: UnitaInGioco = {
-                 idIstanzaUnica: carta.idIstanzaUnica,
-                 cartaDef: carta.cartaDef,
-                 idGiocatore: attivo.id,
-                 slot: slotLiberoForzato,
-                 vitaAttuale: carta.cartaDef.vita!,
-                 attaccoAttuale: carta.cartaDef.attacco!,
-             };
-             // Controllo base anti-sovrascrittura (minimo di sicurezza)
-             if (campoAttivo[slotLiberoForzato] === null) {
-                campoAttivo[slotLiberoForzato] = nuovaUnita;
-                attivo.mano.splice(indiceCarta, 1);
-                logEvento(stato, `  > [DEBUG FORZATO] G${attivo.id}: Schiera ${nuovaUnita.cartaDef.nome} nello slot ${slotLiberoForzato}`);
-                cartaGiocataEUscitaDallaMano = true;
-                continue; // Riesamina lo stesso indice
-             } else {
-                  logEvento(stato, `  > [DEBUG FORZATO FALLITO] Slot ${slotLiberoForzato} già occupato.`);
-                   // NON fare continue, l'indice si incrementerà sotto
-             }
-             // --- FINE DEBUG FORZATO ---
+            if (carta.cartaDef.tipo === 'Unita') {
+                 console.log("[ULTRA DEBUG] Carta è Unità a Prep 0!");
+                 // --- FORZA TEMPORANEAMENTE LO SCHIERAMENTO (SOLO PER DEBUG!) ---
+                 const slotLiberoForzato = campoAttivo.findIndex(slot => !slot); // Usa il findIndex corretto per trovare davvero lo slot!
+                 console.log(`[ULTRA DEBUG] Tentativo forzato slot (trovato: ${slotLiberoForzato}). Campo prima:`, JSON.stringify(campoAttivo.map(u => u?.cartaDef.nome ?? null)));
 
-        } else if (carta.cartaDef.tipo === 'Potere') {
-             console.log("[ULTRA DEBUG] Carta è Potere a Prep 0!");
-              // --- FORZA TEMPORANEAMENTE IL LANCIO (SOLO PER DEBUG!) ---
-               logEvento(stato, `  > [DEBUG FORZATO] G${attivo.id}: Lancia ${carta.cartaDef.nome}`);
-               logEvento(stato, `    - Effetto Placeholder applicato! (DEBUG FORZATO)`);
-               attivo.carteScartate.push(carta.cartaDef);
-               attivo.mano.splice(indiceCarta, 1);
-               cartaGiocataEUscitaDallaMano = true;
-               continue; // Riesamina lo stesso indice
-              // --- FINE DEBUG FORZATO ---
+                 if (slotLiberoForzato !== -1) { // Usa il vero slot trovato!
+                    const nuovaUnita: UnitaInGioco = {
+                         idIstanzaUnica: carta.idIstanzaUnica,
+                         cartaDef: carta.cartaDef,
+                         idGiocatore: attivo.id,
+                         slot: slotLiberoForzato,
+                         vitaAttuale: carta.cartaDef.vita!,
+                         attaccoAttuale: carta.cartaDef.attacco!,
+                     };
+                     campoAttivo[slotLiberoForzato] = nuovaUnita; // Piazza nello slot corretto
+                     attivo.mano.splice(indiceCarta, 1);
+                     logEvento(stato, `  > [DEBUG FORZATO] G${attivo.id}: Schiera ${nuovaUnita.cartaDef.nome} nello slot ${slotLiberoForzato}`);
+                     cartaGiocataEUscitaDallaMano = true;
+                     continue; // Riesamina lo stesso indice
+                 } else {
+                      logEvento(stato, `  > [DEBUG FORZATO FALLITO] Nessuno slot libero trovato! (Campo: ${JSON.stringify(campoAttivo.map(u=>u?.cartaDef.nome ?? null))})`);
+                       // NON fare continue, l'indice si incrementerà sotto
+                 }
+                 // --- FINE DEBUG FORZATO ---
+
+            } else if (carta.cartaDef.tipo === 'Potere') {
+                 console.log("[ULTRA DEBUG] Carta è Potere a Prep 0!");
+                  // --- FORZA TEMPORANEAMENTE IL LANCIO (SOLO PER DEBUG!) ---
+                   logEvento(stato, `  > [DEBUG FORZATO] G${attivo.id}: Lancia ${carta.cartaDef.nome}`);
+                   logEvento(stato, `    - Effetto Placeholder applicato! (DEBUG FORZATO)`);
+                   attivo.carteScartate.push(carta.cartaDef);
+                   attivo.mano.splice(indiceCarta, 1);
+                   cartaGiocataEUscitaDallaMano = true;
+                   continue; // Riesamina lo stesso indice
+                  // --- FINE DEBUG FORZATO ---
+            }
+        } // fine if prep=0
+
+        if (!cartaGiocataEUscitaDallaMano) {
+             // Solo se non è stata rimossa, incrementa per passare alla successiva
+             // console.log(`[ULTRA DEBUG] Indice incrementato per ${carta.cartaDef.nome}`);
+            indiceCarta++;
         }
-    } // fine if prep=0
-
-    if (!cartaGiocataEUscitaDallaMano) {
-        indiceCarta++;
-    }
-} // Fine while mano
+    } // Fine while mano
+     console.log(`[ULTRA DEBUG] G${attivo.id} Fine GiocoCarte - Campo Attivo:`, JSON.stringify(campoAttivo.map(u => u?.cartaDef.nome ?? null)));
+}
 
 
 function faseAttacco(stato: StatoPartita) {
     stato.faseTurno = "Attacco";
-    const { attivo, passivo } = getGiocatori(stato);
-    const { campoAttivo, campoPassivo } = getCampi(stato);
+    const { attivo, passivo } = getGiocatori(stato); // Definisci qui
+    const { campoAttivo, campoPassivo } = getCampi(stato); // Definisci qui
     logEvento(stato, `G${attivo.id}: Fase Attacco.`);
     let attacchiLog = "";
 
@@ -181,7 +190,7 @@ function faseAttacco(stato: StatoPartita) {
                 attacchiLog += logRiga;
             } else {
                 const danno = attaccante.attaccoAttuale;
-                passivo.eroe.hpAttuali -= danno;
+                passivo.eroe.hpAttuali -= danno; // Usa 'passivo' definito sopra
                 logRiga += ` -> EROE(${danno}d, ${passivo.eroe.hpAttuali}HP); `;
                 attacchiLog += logRiga;
 
@@ -215,7 +224,7 @@ function faseMorteEScorrimento(stato: StatoPartita) {
                  const unita = campoDaProcessare[i];
                  if (unita && unita.vitaAttuale <= 0) {
                      qualcosaDaLoggare = true;
-                     logMortiGiocatore += `${unita.cartaDef.nome.substring(0,10)}@S${i} `;
+                     logMortiGiocatore += `${unita.cartaDef.nome.substring(0,10)}@S${i}(G${idGiocatoreProcessato}) `;
                      // TODO: Effetto OnDeath
                      giocatore.carteScartate.push(unita.cartaDef);
                      campoDaProcessare[i] = null; // Rimuovi
@@ -255,7 +264,7 @@ function faseMorteEScorrimento(stato: StatoPartita) {
 
 function faseFineTurno(stato: StatoPartita) {
     stato.faseTurno = "FineTurno";
-    const { attivo } = getGiocatori(stato);
+    const { attivo } = getGiocatori(stato); // Definisci 'attivo'
 
     if (attivo.mano.length > MAX_CARTE_MANO) {
         logEvento(stato, `G${attivo.id}: Mano piena (${attivo.mano.length} > ${MAX_CARTE_MANO}), scarto carte...`);
@@ -306,28 +315,24 @@ export function avviaSimulazioneCompleta(params: SimulationParams): StatoPartita
     };
 
     logEvento(statoIniziale, `Giocatore ${statoIniziale.idGiocatoreAttivo} inizia.`);
-    const stato: StatoPartita = JSON.parse(JSON.stringify(statoIniziale)); // Copia profonda necessaria
+    const stato: StatoPartita = JSON.parse(JSON.stringify(statoIniziale)); // Copia profonda
 
-    // --- INIZIO BATTAGLIA ---
-    // TODO: Risolvere eventuali effetti "Inizio Battaglia" qui (Eroi, Equip)
     logEvento(stato, `Sistema: Fase Inizio Battaglia (TODO)`);
 
-    // --- CICLO TURNI ---
     while (!stato.gameOver && stato.turnoAttuale < MAX_TURNI) {
         stato.turnoAttuale++;
 
         faseInizioTurno(stato);
         fasePesca(stato);               if (stato.gameOver) break;
         fasePreparazione(stato);
-        faseGiocoCarte(stato);
+        faseGiocoCarte(stato); // <-- Qui chiamiamo la versione debug forzata
         faseAttacco(stato);             if (stato.gameOver) break;
         faseMorteEScorrimento(stato);   if (stato.gameOver) break;
         faseFineTurno(stato);
 
-        stato.idGiocatoreAttivo = stato.idGiocatoreAttivo === 1 ? 2 : 1; // Passa il turno
+        stato.idGiocatoreAttivo = stato.idGiocatoreAttivo === 1 ? 2 : 1;
     }
 
-    // --- FINE PARTITA (Limite Turni o Condizioni non nel ciclo) ---
     if (!stato.gameOver && stato.turnoAttuale >= MAX_TURNI) {
         stato.gameOver = true;
         logEvento(stato, `!!! Limite Turni (${MAX_TURNI}) Raggiunto!`);
