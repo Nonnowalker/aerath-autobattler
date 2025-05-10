@@ -55,16 +55,17 @@ export interface KeywordDefinition {
 
 // --- Definizione Base Carta (come da DB/API) ---
 export interface CartaDef {
-  id: string;         // ID stringa logico univoco (es: goblin_esploratore)
-  nome: string;       // Nome visualizzato della carta
-  tipo: 'Unità' | 'Potere' | 'Equipaggiamento' | 'Pozione' | 'Scenario';
-  punteggioPreparazioneIniziale: number; // Per Unità, Poteri, forse Pozioni se in mano
-  descrizioneAbilita?: string;         // Testo "flavor" generale della carta o descrizione principale
-  abilitaKeywords: KeywordDefinition[];   // Array delle sue keyword strutturate
-  affiliazioni?: string[];                // Es. ["Eroe", "Guardiano", "Abissale", "Umano"]
-  // Campi specifici per tipo di carta:
-  slotEquipaggiamento?: 'ArmaPrincipale' | 'ArmaSecondaria' | 'Armatura' | 'Elmo' | 'Amuleto'; // Per Equip
-  // `attacco` e `vita` rimossi, ora gestiti da keyword (es. PUNTI_FERITA, MISCHIA)
+  id: string;
+  nome: string;
+  tipo: 'Unità' | 'Potere' | 'Equipaggiamento' | 'Pozione' | 'Scenario' | 'EroeBase'; // Aggiunto EroeBase
+  punteggioPreparazioneIniziale: number; // 0 per EroeBase, Equip, Scenario, Pozione (se non in mano)
+  abilitaKeywords: KeywordDefinition[];
+  affiliazioni?: string[]; // ["Eroe", "Ruolo", "Etnia", "Razza"] o ["Campione", "Ruolo", "Etnia", "Razza"] o ["Ruolo", "Etnia", "Razza"]
+  slotEquipaggiamento?: 'ArmaPrincipale' | 'ArmaSecondaria' | 'Armatura' | 'Elmo' | 'Amuleto';
+  // Campi specifici per EroeBase (se non gestiti solo da keyword)
+  hpBaseLivello1?: number;      // HP dell'eroe al livello 1
+  comandoBaseLivello1?: number; // Comando dell'eroe al livello 1
+  // progressioneLivelli?: []; // In futuro, struttura per definire come cambiano stat/keyword per livello
 }
 
 // --- Entità in gioco o in mano ---
@@ -77,36 +78,48 @@ export interface CartaInMano {
 }
 
 export interface EroeInGioco {
-    idGiocatore: number;
-    hpAttuali: number;
-    hpMax: number; // Derivato dalla somma di keyword PUNTI_FERITA (base + equip)
-    keywordBaseEroe: KeywordDefinition[]; // Keyword intrinseche dell'eroe (dal suo livello/definizione)
-    keywordDaEquip: KeywordDefinition[];  // Keyword aggiunte dagli equipaggiamenti indossati
-    keywordTemporanee: KeywordDefinition[]; // Buff/debuff attivi sull'eroe con durata
-    // Futuro: equipaggiamentoIndossato (oggetti CartaDef)
+  idGiocatore: number;
+  idDefEroe: string; // Riferimento all'id della CartaDef dell'EroeBase
+  nomeEroe: string;
+  livello: number; // Livello attuale dell'eroe
+  hpAttuali: number;
+  hpMax: number;     // Calcolati in base a livello e keyword
+  comandoMax: number; // Dimensione massima mazzo, da livello
+  keywordEffettive: KeywordDefinition[]; // Combinazione di base + equip + temporanee
+  // Equipaggiamento (da definire meglio come oggetto o array di CartaDef)
+  equipIndossato: {
+      ArmaPrincipale?: CartaDef;
+      ArmaSecondaria?: CartaDef;
+      Armatura?: CartaDef;
+      Elmo?: CartaDef;
+      Amuleto?: CartaDef;
+  };
+  // Affiliazioni effettive (base + quelle da equip?)
+  affiliazioniEffettive: string[];
 }
 
+// UnitaInGioco rimane simile, ma HP Max deriverà da keyword PUNTI_FERITA
 export interface UnitaInGioco {
   idIstanzaUnica: number;
-  cartaDef: CartaDef;     // Da cui leggere abilitaKeywords base
+  cartaDef: CartaDef;
   idGiocatore: number;
-  slot: number;           // Posizione 0-6 specifica del giocatore
-  vitaAttuale: number;    // Gestita e modificata in gioco
-  // L'attacco effettivo e gli HP max sono derivati dalle keyword
-  keywordTemporanee: KeywordDefinition[]; // Buff/debuff attivi sull'unità con durata
+  slot: number;
+  vitaAttuale: number;
+  // hpMax è implicitamente il valore di PUNTI_FERITA dalla cartaDef
+  keywordTemporanee: KeywordDefinition[];
 }
 
 // --- Stato del Gioco ---
 
+// StatoGiocatore ora contiene EroeInGioco e pozioneEquipaggiata
 export interface StatoGiocatore {
   id: number;
-  eroe: EroeInGioco;
+  eroe: EroeInGioco; // Oggetto Eroe più dettagliato
   mano: CartaInMano[];
   mazzoRimanente: CartaDef[];
-  carteScartate: CartaDef[]; // Cimitero
+  carteScartate: CartaDef[];
   contatoreFatica: number;
-  // Pozioni attive per questa battaglia (se ce ne sono)
-  pozioneAttiva?: CartaDef; // Riferimento alla CartaDef della pozione equipaggiata
+  pozioneEquipaggiata?: CartaDef; // La pozione scelta per la battaglia
 }
 
 export interface StatoPartita {
@@ -126,14 +139,18 @@ export interface StatoPartita {
 }
 
 export interface SimulationParams {
-    mazzoDefG1: CartaDef[];
-    mazzoDefG2: CartaDef[];
-    eroeDefG1?: CartaDef; // Definizione base dell'eroe G1 (con le sue keywordBaseEroe)
-    eroeDefG2?: CartaDef; // Definizione base dell'eroe G2
-    equipG1?: CartaDef[]; // Array di equipaggiamenti per G1
-    equipG2?: CartaDef[]; // Array di equipaggiamenti per G2
-    pozioneG1?: CartaDef; // Pozione scelta da G1
-    pozioneG2?: CartaDef; // Pozione scelta da G2
-    scenario?: CartaDef;  // Scenario della battaglia
-    hpInizialiEroeOverride?: number; // Per sovrascrivere HP se non usi keyword PUNTI_FERITA
+  mazzoDefG1: CartaDef[];
+  mazzoDefG2: CartaDef[];
+  // Definizione EroeBase per ogni giocatore e il loro livello per la simulazione
+  eroeBaseG1: CartaDef; // La CartaDef dell'eroe
+  livelloEroeG1: number;
+  equipEroeG1?: CartaDef[]; // Array di CartaDef degli equip indossati
+
+  eroeBaseG2: CartaDef;
+  livelloEroeG2: number;
+  equipEroeG2?: CartaDef[];
+
+  pozioneG1?: CartaDef;
+  pozioneG2?: CartaDef;
+  scenario?: CartaDef;
 }
