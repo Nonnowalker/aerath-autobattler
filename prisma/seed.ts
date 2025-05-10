@@ -1,13 +1,12 @@
 // prisma/seed.ts
 import { PrismaClient } from '@prisma/client';
-import { carteBase } from '../src/simulation/data/cards'; // Verifica il percorso relativo
+import { carteEsempioDef } from '../src/simulation/data/cards.js'; 
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log(`Inizio seeding di ${carteBase.length} carte di esempio...`);
-
-  for (const carta of carteBase) {
+  console.log(`\nInizio seeding di ${carteEsempioDef.length} carte di esempio...`);
+for (const cartaDef of carteEsempioDef) {
     // Tipo viene direttamente dalla stringa in carteBase,
     // purché corrisponda a "Unita" o "Potere" definiti nell'enum dello schema.
     // Prisma dovrebbe accettare la stringa se matcha un valore dell'enum.
