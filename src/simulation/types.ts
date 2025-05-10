@@ -31,8 +31,10 @@ export type KeywordTarget =
     | "TutteUnità"
     | "UnitàAlleataPiùASinistra"
     | "UnitàNemicaPiùASinistra"
+    | "UnitàAlleataConMenoHP"
+    | "UnitàAlleataConPiùHP"
+    | "UnitàNemicaConPiùHP"
     | "UnitàNemicaConMenoHP"
-    | "UnitàNemicaConPiuHP"
     | "CartaNellaManoCasuale";
 
 // --- Definizione BASE di una Keyword (per la Libreria Centrale) ---
