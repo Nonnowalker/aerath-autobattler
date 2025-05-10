@@ -1,4 +1,5 @@
 // prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,21 +9,63 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- RIMUOVI o COMMENTA LA DEFINIZIONE ENUM ---
-// enum CardType {
-//   Unita
-//   Potere
-// }
+// --- Modello per la Libreria Centrale delle Keyword ---
+model KeywordBase {
+  id                       String    @id // Es. "KW_MISCHIA_UNITA", "KW_ARMATURA"
+  nomeVisualizzato         String
+  descrizioneBase          String    // Può usare placeholder come {VALORE}, {TIPODANNO}
+  triggerBase              String    // Corrisponde a KeywordTrigger (memorizzato come stringa)
+  targetBase               String    // Corrisponde a KeywordTarget (memorizzato come stringa)
+  // Flag per l'UI di creazione/editing e per la validazione
+  richiedeValore           Boolean   @default(false)
+  richiedeTipoDanno        Boolean   @default(false)
+  richiedeValoreTarget     Boolean   @default(false)
+  richiedeDurata           Boolean   @default(false)
+  richiedeApplicaStatus    Boolean   @default(false)
 
+  // Relazione: Una KeywordBase può essere applicata a molte carte
+  applicazioniSuCarte CardKeywordApplication[]
+}
+
+// --- Modello per la Definizione delle Carte ---
 model Card {
-  id                      Int      @id @default(autoincrement())
-  dbId                    String   @unique
-  nome                    String
-  tipo                    String   // <--- Deve essere String
-  attacco                 Int?
-  vita                    Int?
-  punteggioPreparazioneIniziale Int
-  descrizioneAbilita      String?
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id                               String   @id // L'ID logico della carta (es. "alytia_celestiale_base")
+  nome                             String
+  tipo                             String   // "Unità", "Potere", "Equipaggiamento", "Pozione", "Scenario", "EroeBase"
+  punteggioPreparazioneIniziale    Int
+  flavorText                       String?
+  affiliazioniJSON                 String?  // Stringa JSON per string[]
+  slotEquipaggiamento              String?  // Es. "ArmaPrincipale"
+  comandoBase                      Int?     // Per EroeBase
+
+  // Relazione: Una carta ha molte keyword applicate
+  abilitaKeywordsApplicate CardKeywordApplication[]
+
+  createdAt                        DateTime @default(now())
+  updatedAt                        DateTime @updatedAt
+}
+
+// --- Modello per la Tabella di Giunzione (Relazione Many-to-Many con attributi) ---
+// Questo modello rappresenta una specifica applicazione di una KeywordBase a una Card,
+// con i valori specifici di quella applicazione.
+model CardKeywordApplication {
+  id                       Int         @id @default(autoincrement()) // PK per la riga della relazione
+  cardId                   String      // FK a Card.id
+  keywordBaseId            String      // FK a KeywordBase.id
+
+  card                     Card        @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  keywordBase              KeywordBase @relation(fields: [keywordBaseId], references: [id], onDelete: Cascade)
+
+  // Campi specifici di questa applicazione della keyword sulla carta
+  valore                   Int?
+  tipoDanno                String?
+  valoreTarget             String?     // Memorizziamo come stringa, il parsing/interpretazione avviene nel codice
+  durata                   Int?
+  applicaStatus            String?
+
+  // Assicura che la combinazione di una carta e una keyword base (più i suoi valori specifici, se necessario per unicità)
+  // non sia duplicata se non ha senso. Per ora, permettiamo duplicati (es. due keyword LAMPO sulla stessa carta).
+  // Se volessimo unicità, si potrebbe usare @@unique([cardId, keywordBaseId, ...altri campi che definiscono unicità])
+  // ma questo rende più complesso avere, ad esempio, due volte "MISCHIA(1)" vs. una "MISCHIA(2)".
+  // Per ora, la logica del motore gestirà come le keyword multiple dello stesso tipo si combinano o si attivano.
 }
