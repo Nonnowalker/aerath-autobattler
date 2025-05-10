@@ -57,14 +57,12 @@ export interface CartaDef {
   nome: string;
   tipo: 'Unità' | 'Potere' | 'Equipaggiamento' | 'Pozione' | 'Scenario' | 'EroeBase';
   punteggioPreparazioneIniziale: number;
-  flavorText?: string; // <-- RINOMINATO da descrizioneAbilita, è opzionale
-  abilitaKeywords: KeywordDefinition[];
+  flavorText?: string;
+  abilitaKeywords: KeywordDefinition[]; // Qui ci sarà { nome: "PUNTI_FERITA_INIZIALI", valore: X, ... }
   affiliazioni?: string[];
   slotEquipaggiamento?: 'ArmaPrincipale' | 'ArmaSecondaria' | 'Armatura' | 'Elmo' | 'Amuleto';
-  // hpBaseLivello1 e comandoBaseLivello1 rimangono per EroeBase
-  hpBaseLivello1?: number;
-  comandoBaseLivello1?: number;
-  // ATTACCO e VITA rimossi, gestiti da Keywords
+  // Rimuoviamo hpBaseLivello1 se PUNTI_FERITA_INIZIALI è nella keyword base dell'eroe
+  // comandoBaseLivello1: number; // Lo lasciamo per EroeBase
 }
 
 // --- Entità in gioco o in mano ---
@@ -83,19 +81,13 @@ export interface EroeInGioco {
   idDefEroe: string;
   nomeEroe: string;
   livello: number;
-  hpAttuali: number;
-  hpMax: number; // Calcolato dalle keyword PUNTI_FERITA
+  hpAttuali: number; // <--- PUNTI_FERITA_ATTUALI
+  hpMax: number;     // <--- PUNTI_FERITA_MAX (calcolati)
   comandoMax: number;
   keywordBaseEroe: KeywordDefinition[];
   keywordDaEquip: KeywordDefinition[];
   keywordTemporanee: KeywordDefinition[];
-  equipIndossato: {
-      ArmaPrincipale?: CartaDef;
-      ArmaSecondaria?: CartaDef;
-      Armatura?: CartaDef;
-      Elmo?: CartaDef;
-      Amuleto?: CartaDef;
-  };
+  equipIndossato: { /* ... */ };
   affiliazioniEffettive: string[];
 }
 
@@ -105,8 +97,8 @@ export interface UnitaInGioco {
   cartaDef: CartaDef;
   idGiocatore: number;
   slot: number;
-  vitaAttuale: number; // HP correnti, modificati in gioco
-  // hpMax è il valore della sua keyword PUNTI_FERITA
+  hpAttuali: number; // <--- RINOMINATO da vitaAttuale a PUNTI_FERITA_ATTUALI
+  hpMax: number;     // <--- NUOVO CAMPO per PUNTI_FERITA_MAX (calcolati allo schieramento)
   keywordTemporanee: KeywordDefinition[];
 }
 
