@@ -1,79 +1,137 @@
 // src/simulation/types.ts
+// Versione Revisionata per Uniformità HP e Rimozione Attacco Base
 
-// Definizione Base (come da DB/API, non la cambiamo ora)
+// KeywordTrigger e KeywordTarget rimangono invariati come da KW_IMPL_024 / KW_IMPL_031
+export type KeywordTrigger =
+    | "SempreAttiva" | "InizioBattaglia" | "InizioTurnoGiocatore" | "FineTurnoGiocatore"
+    | "QuandoGiocata" | "FaseAttacco" | "QuandoAttacca" | "QuandoDifende"
+    | "QuandoSubisceDanno" | "QuandoInfliggeDannoCombattimento" | "QuandoMuore"
+    | "QuandoUnAlleatoMuore" | "QuandoUnNemicoMuore" | "QuandoPescaCarta";
+
+export type KeywordTarget =
+    | "Nessuno" | "SéStesso" | "UnitàOpposta" | "EroeNemico" | "EroeAlleato"
+    | "UnitàAlleataCasuale" | "UnitàNemicaCasuale" | "TutteUnitàAlleate" | "TutteUnitàNemiche"
+    | "TutteUnità" | "UnitàAlleataPiùASinistra" | "UnitàNemicaPiùASinistra"
+    | "UnitàAlleataConMenoHP" | "UnitàAlleataConPiuHP" | "UnitàNemicaConMenoHP" | "UnitàNemicaConPiuHP"
+    | "CartaNellaManoCasuale";
+
+// Definizione BASE di una Keyword (per la Libreria Centrale)
+export interface LibreriaKeywordEntry {
+    id: string;
+    nomeVisualizzato: string;
+    descrizioneBase: string;
+    triggerBase: KeywordTrigger;
+    targetBase: KeywordTarget;
+    richiedeValore?: boolean;
+    richiedeTipoDanno?: boolean;
+    richiedeValoreTarget?: boolean;
+    richiedeDurata?: boolean;
+    richiedeApplicaStatus?: boolean;
+}
+
+// Keyword APPLICATA a una Carta Specifica
+export interface KeywordApplicata {
+    keywordId: string;
+    valore?: number;
+    tipoDanno?: string;
+    valoreTarget?: any;
+    durata?: number;
+    applicaStatus?: string;
+}
+
+// Definizione Base Carta
 export interface CartaDef {
   id: string;
   nome: string;
-  tipo: 'Unità' | 'Potere';
-  attacco?: number;
-  vita?: number;
+  tipo: 'Unità' | 'Potere' | 'Equipaggiamento' | 'Pozione' | 'Scenario' | 'EroeBase';
   punteggioPreparazioneIniziale: number;
-  descrizioneAbilita?: string;
+  flavorText?: string;
+  abilitaKeywords: KeywordApplicata[]; // HP e capacità offensive definite qui
+  affiliazioni?: string[];
+  slotEquipaggiamento?: 'ArmaPrincipale' | 'ArmaSecondaria' | 'Armatura' | 'Elmo' | 'Amuleto';
+  comandoBase?: number; // Per EroeBase, per la keyword KW_COMANDO_BASE
 }
 
-// Istanza di Carta in Mano
+// Entità in gioco o in mano
+
 export interface CartaInMano {
   idIstanzaUnica: number;
   cartaDef: CartaDef;
   preparazioneAttuale: number;
-  // 'Bloccato' usato se un potere è a 0 ma non può essere lanciato
-  statoPotere?: 'Pronto' | 'Bloccato';
+  statoPotere?: 'Bloccato';
 }
 
-// Istanza di Unità sul Campo
+export interface EroeInGioco {
+    idGiocatore: number;
+    idDefEroe: string;
+    nomeEroe: string;
+    livello: number;
+    hpAttuali: number;         // PUNTI_FERITA_ATTUALI
+    hpMax: number;             // PUNTI_FERITA_MAX (calcolati)
+    comandoMax: number;        // Calcolato
+    // Keyword "risolte" e pronte all'uso (combinazione di base + equip)
+    keywordEffettive: (LibreriaKeywordEntry & KeywordApplicata)[];
+    keywordTemporanee: (LibreriaKeywordEntry & KeywordApplicata)[]; // Buff/debuff
+    equipIndossato: {
+        ArmaPrincipale?: CartaDef;
+        ArmaSecondaria?: CartaDef;
+        Armatura?: CartaDef;
+        Elmo?: CartaDef;
+        Amuleto?: CartaDef;
+    };
+    affiliazioniEffettive: string[];
+}
+
 export interface UnitaInGioco {
   idIstanzaUnica: number;
   cartaDef: CartaDef;
   idGiocatore: number;
-  slot: number; // Posizione 0-6 specifica del giocatore
-  vitaAttuale: number;
-  attaccoAttuale: number; // Base, modificabile in futuro
-  // Futuro: puoAttaccareQuestoTurno, effettiStatus[]
+  slot: number;
+  hpAttuali: number;      // PUNTI_FERITA_ATTUALI (rinominato da vitaAttuale)
+  hpMax: number;          // PUNTI_FERITA_MAX (calcolati dalla keyword PUNTI_FERITA_INIZIALI)
+  // Keyword "risolte" e pronte all'uso (dalla sua CartaDef)
+  keywordEffettive: (LibreriaKeywordEntry & KeywordApplicata)[];
+  keywordTemporanee: (LibreriaKeywordEntry & KeywordApplicata)[]; // Buff/debuff
 }
 
-// Eroe in Gioco
-export interface EroeInGioco {
-    idGiocatore: number;
-    hpAttuali: number;
-    hpMax: number;
-    // Futuro: equipaggiamenti, abilitaPassiva
-}
+// Stato del Gioco
 
-// Stato di un Giocatore
 export interface StatoGiocatore {
-  id: number; // 1 o 2
+  id: number;
   eroe: EroeInGioco;
-  mano: CartaInMano[]; // Max 7 a fine turno
+  mano: CartaInMano[];
   mazzoRimanente: CartaDef[];
-  carteScartate: CartaDef[]; // Cimitero
+  carteScartate: CartaDef[];
   contatoreFatica: number;
+  pozioneEquipaggiata?: CartaDef;
 }
 
-// Stato Globale della Partita
 export interface StatoPartita {
-  // Identificativi partita (opzionale)
   idPartita?: string;
-  // Stato attuale
-  turnoAttuale: number; // Numero del turno (1, 2, ...)
-  idGiocatoreAttivo: number; // 1 o 2
-  faseTurno: string; // Es: "InizioTurno", "Pesca", "Preparazione", "Gioco", "Attacco", "Morte", "FineTurno"
-  // Componenti gioco
+  turnoAttuale: number;
+  idGiocatoreAttivo: number;
+  faseTurno: string;
   giocatori: [StatoGiocatore, StatoGiocatore];
-  // Campo battaglia: Array[7] per ogni giocatore (null se slot vuoto)
   campoG1: (UnitaInGioco | null)[];
   campoG2: (UnitaInGioco | null)[];
-  // Log e stato finale
+  scenarioAttivo?: CartaDef;
   eventiLog: string[];
   gameOver: boolean;
-  vincitore: number | null; // ID del vincitore o null
-  // Contatori e flag interni
-  prossimoIdIstanzaUnica: number; // Per carte in mano -> unità in gioco
-  primoTurnoP1Saltato: boolean;   // Flag per gestire regola prima pesca G1
+  vincitore: number | null;
+  prossimoIdIstanzaUnica: number;
+  primoTurnoP1Saltato: boolean;
 }
 
-// Tipo Helper per i parametri iniziali della simulazione
 export interface SimulationParams {
-    mazzoDefG1: CartaDef[]; // Le definizioni carta per il mazzo G1
-    mazzoDefG2: CartaDef[]; // Le definizioni carta per il mazzo G2
-    hpInizialiEroe?: number; // Opzionale, default a 40
+    mazzoDefG1: CartaDef[];
+    mazzoDefG2: CartaDef[];
+    eroeBaseG1: CartaDef;
+    livelloEroeG1: number;
+    equipEroeG1?: CartaDef[];
+    eroeBaseG2: CartaDef;
+    livelloEroeG2: number;
+    equipEroeG2?: CartaDef[];
+    pozioneG1?: CartaDef;
+    pozioneG2?: CartaDef;
+    scenario?: CartaDef;
 }
