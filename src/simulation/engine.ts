@@ -1,6 +1,4 @@
 // src/simulation/engine.ts
-// Versione Completa e Revisionata per Uniformità HP, Comando e Attacco da Keyword
-
 import {
     StatoPartita,
     CartaDef,
@@ -8,11 +6,8 @@ import {
     UnitaInGioco,
     EroeInGioco,
     CartaInMano,
-    SimulationParams,
-    KeywordApplicata,
-    LibreriaKeywordEntry
+    SimulationParams
 } from './types.js';
-import { LIBRERIA_KEYWORD, risolviKeyword } from './data/keywordLibrary.js';
 
 // --- Costanti Configurabili ---
 const MAX_CARTE_MANO = 7;
@@ -35,27 +30,19 @@ function getGiocatori(stato: StatoPartita): { attivo: StatoGiocatore, passivo: S
     const attivo = stato.giocatori.find(g => g.id === stato.idGiocatoreAttivo);
     const passivo = stato.giocatori.find(g => g.id !== stato.idGiocatoreAttivo);
     if (!attivo || !passivo) {
-        // Questo non dovrebbe mai accadere in una partita valida
-        console.error(`Errore critico: Impossibile determinare giocatori. idGiocatoreAttivo=${stato.idGiocatoreAttivo}, giocatori=`, stato.giocatori);
         throw new Error(`Impossibile determinare giocatori: attivo=${stato.idGiocatoreAttivo}`);
     }
     return { attivo, passivo };
 }
 
 function getCampi(stato: StatoPartita): { campoAttivo: (UnitaInGioco | null)[], campoPassivo: (UnitaInGioco | null)[] } {
-     const attivoId = stato.idGiocatoreAttivo;
-     const campoAttivo = attivoId === 1 ? stato.campoG1 : stato.campoG2;
-     const campoPassivo = attivoId === 1 ? stato.campoG2 : stato.campoG1;
-     if (!campoAttivo || !campoPassivo) {
-         console.error(`Errore critico: Campi non definiti. idGiocatoreAttivo=${attivoId}, campoG1=`, stato.campoG1, `campoG2=`, stato.campoG2);
-         throw new Error(`Campi non definiti per giocatore attivo ${attivoId}`);
-     }
+     const campoAttivo = stato.idGiocatoreAttivo === 1 ? stato.campoG1 : stato.campoG2;
+     const campoPassivo = stato.idGiocatoreAttivo === 1 ? stato.campoG2 : stato.campoG1;
      return { campoAttivo, campoPassivo };
 }
 
 function logEvento(stato: StatoPartita, messaggio: string) {
     stato.eventiLog.push(messaggio);
-    // console.log(messaggio); // Decommenta per output verboso in console durante il test
 }
 
 // --- Funzioni delle Fasi del Turno ---
@@ -63,29 +50,6 @@ function logEvento(stato: StatoPartita, messaggio: string) {
 function faseInizioTurno(stato: StatoPartita) {
     stato.faseTurno = "InizioTurno";
     logEvento(stato, `\n--- TURNO ${stato.turnoAttuale} (Giocatore ${stato.idGiocatoreAttivo}) ---`);
-    // TODO: Risolvere keyword con trigger "InizioTurnoGiocatore" per giocatore attivo
-    // (Eroe, Unità sul campo, Scenario, Pozioni)
-    const { attivo } = getGiocatori(stato);
-
-    // Processa keyword "InizioTurnoGiocatore" per l'eroe attivo
-    attivo.eroe.keywordEffettive.forEach(kwRisolta => {
-        if (kwRisolta.triggerBase === "InizioTurnoGiocatore") {
-            logEvento(stato, `G${attivo.id} (Eroe ${attivo.eroe.nomeEroe}): Attivazione ${kwRisolta.nomeVisualizzato} (TODO: Applicare effetto InizioTurno Eroe!)`);
-            // Esempio: if (kwRisolta.id === "KW_MALOCCHIO_DEBILITANTE") { /* ... logica ... */ }
-        }
-    });
-
-    // Processa keyword "InizioTurnoGiocatore" per le unità attive sul campo
-    const campoDaProcessare = attivo.id === 1 ? stato.campoG1 : stato.campoG2;
-    campoDaProcessare.forEach(unita => {
-        if (unita && unita.hpAttuali > 0) {
-            unita.keywordEffettive.forEach(kwRisolta => {
-                if (kwRisolta.triggerBase === "InizioTurnoGiocatore") {
-                    logEvento(stato, `G${attivo.id} (Unità ${unita.cartaDef.nome}): Attivazione ${kwRisolta.nomeVisualizzato} (TODO: Applicare effetto InizioTurno Unità!)`);
-                }
-            });
-        }
-    });
 }
 
 function fasePesca(stato: StatoPartita) {
@@ -115,7 +79,6 @@ function fasePesca(stato: StatoPartita) {
         };
         attivo.mano.push(nuovaCartaInMano);
         logEvento(stato, `G${attivo.id}: Pesca ${cartaPescataDef.nome} (Prep: ${nuovaCartaInMano.preparazioneAttuale})`);
-        // TODO: Risolvere keyword con trigger "QuandoPescaCarta" (sulla carta pescata o globali)
     }
 }
 
@@ -137,242 +100,202 @@ function fasePreparazione(stato: StatoPartita) {
     if (logPrep) logEvento(stato, `- Prep: ${logPrep.trim()}`);
 }
 
-// src/simulation/engine.ts
-// Parte 2: faseGiocoCarte, faseAttacco, faseMorteEScorrimento, faseFineTurno, avviaSimulazioneCompleta
+// Import necessari all'inizio del file engine.ts (assicurati siano presenti)
+import * as types from './types.js';
 
-// ... (Import, Costanti, Funzioni Helper, faseInizioTurno, fasePesca, fasePreparazione dalla PARTE 1 - CLEANUP_005_PART1)
+// Assicurati che getGiocatori, getCampi e logEvento siano definite o importate correttamente
+// Esempio dichiarazione fittizia se non importate:
+// declare function getGiocatori(stato: StatoPartita): { attivo: StatoGiocatore, passivo: StatoGiocatore };
+// declare function getCampi(stato: StatoPartita): { campoAttivo: (UnitaInGioco | null)[], campoPassivo: (UnitaInGioco | null)[] };
+// declare function logEvento(stato: StatoPartita, messaggio: string): void;
+// declare const MAX_UNITA_CAMPO: number;
 
-function faseGiocoCarte(stato: StatoPartita) {
+
+// --- Funzione Fase Gioco Carte ---
+
+function faseGiocoCarte(stato: StatoPartita): void {
     stato.faseTurno = "GiocoCarte";
     const { attivo } = getGiocatori(stato);
-    const { campoAttivo } = getCampi(stato);
+    const { campoAttivo } = getCampi(stato); // Ottiene il riferimento corretto a stato.campoG1 o stato.campoG2
     logEvento(stato, `G${attivo.id}: Fase Gioco Carte (Mano: ${attivo.mano.length})`);
 
     let indiceCarta = 0;
+    // Usiamo un ciclo while perché la lunghezza dell'array `attivo.mano` può cambiare durante l'iterazione (a causa di splice)
     while (indiceCarta < attivo.mano.length) {
         const carta = attivo.mano[indiceCarta];
-        let cartaGiocataEUscitaDallaMano = false;
+        let cartaGiocataEUscitaDallaMano = false; // Flag per sapere se l'indice va incrementato
 
+        // Condizione principale: la carta è pronta (prep=0) e non è stata già bloccata in questo turno?
         if (carta.preparazioneAttuale === 0 && carta.statoPotere !== 'Bloccato') {
             logEvento(stato, `- Tentativo gioco: ${carta.cartaDef.nome} (ID: ${carta.idIstanzaUnica})`);
-            const tipoCarta = carta.cartaDef.tipo;
 
-            if (tipoCarta === 'Unità') {
-                const slotLibero = campoAttivo.findIndex(slot => slot === null);
-                if (slotLibero !== -1) {
-                    let hpMaxUnita = 0;
-                    const keywordEffettiveUnita: (LibreriaKeywordEntry & KeywordApplicata)[] = [];
-                    carta.cartaDef.abilitaKeywords.forEach(kwApp => {
-                        const risolta = risolviKeyword(kwApp);
-                        keywordEffettiveUnita.push(risolta);
-                        if (risolta.id === "KW_PUNTI_FERITA_INIZIALI" && typeof risolta.valore === 'number') {
-                            hpMaxUnita += risolta.valore;
-                        }
-                    });
-                    if (hpMaxUnita <= 0) hpMaxUnita = 1;
+            // Logica specifica per tipo di carta
+            if (carta.cartaDef.tipo === 'Unità') {
+                // Tenta di trovare uno slot libero sul campo del giocatore attivo
+                const slotLibero = campoAttivo.findIndex(slot => slot === null); // Usa comparazione stretta con null
 
+                if (slotLibero !== -1) { // Slot trovato! (Indice valido da 0 a MAX_UNITA_CAMPO - 1)
+                    // Crea l'oggetto UnitaInGioco con i dati della carta
                     const nuovaUnita: UnitaInGioco = {
-                         idIstanzaUnica: carta.idIstanzaUnica,
-                         cartaDef: carta.cartaDef,
-                         idGiocatore: attivo.id,
-                         slot: slotLibero,
-                         hpAttuali: hpMaxUnita,
-                         hpMax: hpMaxUnita,
-                         keywordEffettive: keywordEffettiveUnita,
-                         keywordTemporanee: []
-                     };
+                        idIstanzaUnica: carta.idIstanzaUnica, // Mantiene ID unico
+                        cartaDef: carta.cartaDef,             // Riferimento alla definizione base
+                        idGiocatore: attivo.id,                 // Il giocatore che schiera
+                        slot: slotLibero,                       // Lo slot trovato
+                        // Prende HP/ATK dalla definizione, fornendo un default > 0 per robustezza
+                        vitaAttuale: carta.cartaDef.vita ?? 1,
+                        attaccoAttuale: carta.cartaDef.attacco ?? 0,
+                        // Qui si potrebbero aggiungere altre proprietà iniziali dell'unità se necessario
+                    };
+
+                    // Posiziona l'unità nell'array del campo (questo modifica stato.campoG1 o stato.campoG2)
                     campoAttivo[slotLibero] = nuovaUnita;
+                    // Rimuove la carta giocata dall'array della mano
                     attivo.mano.splice(indiceCarta, 1);
-                    logEvento(stato, `  > G${attivo.id}: Schiera ${nuovaUnita.cartaDef.nome} (HP: ${nuovaUnita.hpMax}) nello slot ${slotLibero}`);
-                    cartaGiocataEUscitaDallaMano = true;
-                    // TODO: Risolvere keyword con trigger "QuandoGiocata" per l'unità appena schierata
-                    // Esempio: nuovaUnita.keywordEffettive.forEach(kw => if(kw.triggerBase === "QuandoGiocata") {/* applica effetto */});
-                    continue;
+                    logEvento(stato, `  > G${attivo.id}: Schiera ${nuovaUnita.cartaDef.nome} nello slot ${slotLibero}`);
+                    cartaGiocataEUscitaDallaMano = true; // Carta rimossa, il flag lo segnala
+
+                    // NON si incrementa indiceCarta qui, perché dopo splice,
+                    // la prossima carta da controllare è già all'indice corrente.
+                    // Si riparte con il check del while.
+
                 } else {
+                    // Non è stato trovato nessuno slot libero (findIndex ha restituito -1)
                     logEvento(stato, `  > Fallito: Campo pieno per ${carta.cartaDef.nome}`);
+                    // La carta non viene giocata, resta in mano. L'indice verrà incrementato sotto.
                 }
             }
-            else if (tipoCarta === 'Potere') {
-                 let bersaglioValidoTrovato = false;
-                 // --- LOGICA BERSAGLI POTERI ---
-                 // Questa logica deve essere espansa per ogni potere.
-                 // Si potrebbe delegare a una funzione per keyword specifica.
-                  const keywordsPotere = carta.cartaDef.abilitaKeywords.map(risolviKeyword);
-                  for (const kwRisolta of keywordsPotere) {
-                      if (kwRisolta.triggerBase === "QuandoGiocata") { // Assumiamo che i poteri abbiano almeno una keyword con questo trigger
-                          // Verifica target basata sulla keyword principale del potere
-                          // Esempio semplice:
-                          if (kwRisolta.targetBase === "TutteUnitàNemiche" || kwRisolta.targetBase === "UnitàNemicaCasuale" || kwRisolta.targetBase === "UnitàNemicaConMenoHP") {
-                               const { campoPassivo } = getCampi(stato);
-                               if (campoPassivo.some(u => u && u.hpAttuali > 0)) bersaglioValidoTrovato = true;
-                          } else {
-                              bersaglioValidoTrovato = true; // Default per altri target o poteri senza target specifico
-                          }
-                          break; // Considera la prima keyword "QuandoGiocata" per determinare la validità del lancio
-                      }
-                  }
-                 // --- FINE LOGICA BERSAGLI POTERI ---
+            else if (carta.cartaDef.tipo === 'Potere') {
+                // Logica per gestire il lancio di Poteri
+                let bersaglioValidoTrovato = false; // Assume falso finché le condizioni non sono verificate
 
+                // --- Implementazione Logica Bersagli/Condizioni per ciascun potere ---
+                // Questo blocco switch (o if/else if) deve contenere la logica specifica per ogni Potere
+                switch (carta.cartaDef.id) {
+                    case 'fulmine_improvviso': { // Logica specifica per questa carta
+                        // Condizione: C'è almeno un'unità nemica viva sul campo?
+                        const nemiciVivi = getCampi(stato).campoPassivo.filter(u => u !== null && u.vitaAttuale > 0);
+                        if (nemiciVivi.length > 0) {
+                            bersaglioValidoTrovato = true; // Condizione soddisfatta
+                        }
+                        break; // Esce dallo switch dopo aver gestito questo ID
+                    }
+                    // case 'altra_carta_potere_id': {
+                    //     // Implementa qui le condizioni per un altro potere...
+                    //     bersaglioValidoTrovato = true; // o false
+                    //     break;
+                    // }
+                    default: {
+                        // Comportamento di default per poteri non specificamente gestiti
+                        // Potrebbe essere sempre vero (si lancia sempre), o sempre falso, o basato su tag/keywords
+                        logEvento(stato, `    - Avviso: Condizione di lancio per ${carta.cartaDef.nome} non specificata, assume possa lanciare.`);
+                        bersaglioValidoTrovato = true; // Default temporaneo
+                        break;
+                    }
+                }
+                // --- Fine Logica Bersagli/Condizioni ---
+
+                // Agisci in base al risultato del check bersaglio
                 if (bersaglioValidoTrovato) {
                     logEvento(stato, `  > G${attivo.id}: Lancia ${carta.cartaDef.nome}`);
-                    // --- APPLICAZIONE EFFETTO POTERE ---
-                    let effettoApplicatoLog = "";
-                    carta.cartaDef.abilitaKeywords.forEach(kwApp => {
-                        const kwRisolta = risolviKeyword(kwApp);
-                        if (kwRisolta.triggerBase === "QuandoGiocata") {
-                            // Esempio per KW_DANNO_AREA_NEMICI
-                            if (kwRisolta.id === "KW_DANNO_AREA_NEMICI" && typeof kwRisolta.valore === 'number') {
-                                const { campoPassivo } = getCampi(stato);
-                                campoPassivo.forEach(unitaNemica => {
-                                    if (unitaNemica && unitaNemica.hpAttuali > 0) {
-                                        // TODO: Applicare ARMATURA/difese del bersaglio
-                                        unitaNemica.hpAttuali -= kwRisolta.valore!;
-                                        effettoApplicatoLog += ` ${unitaNemica.cartaDef.nome} subisce ${kwRisolta.valore} danni;`;
-                                    }
-                                });
-                            }
-                            // Esempio per KW_APPLICA_STATUS_BERSAGLIO
-                            else if (kwRisolta.id === "KW_APPLICA_STATUS_BERSAGLIO" && kwRisolta.applicaStatus && typeof kwRisolta.durata === 'number') {
-                                const { campoPassivo } = getCampi(stato);
-                                const nemiciVivi = campoPassivo.filter(u => u && u.hpAttuali > 0) as UnitaInGioco[];
-                                if (nemiciVivi.length > 0) {
-                                    const target = nemiciVivi[Math.floor(Math.random() * nemiciVivi.length)];
-                                    target.keywordTemporanee.push(risolviKeyword({
-                                        keywordId: `STATUS_${kwRisolta.applicaStatus.toUpperCase()}`, // Questo ID deve esistere in LIBRERIA_KEYWORD se lo status ha effetti propri
-                                        applicaStatus: kwRisolta.applicaStatus,
-                                        durata: kwRisolta.durata,
-                                        triggerBase: "SempreAttiva", // O il trigger dello status
-                                        targetBase: "SéStesso"      // Lo status è sull'unità
-                                    }));
-                                    effettoApplicatoLog += ` ${target.cartaDef.nome} diventa ${kwRisolta.applicaStatus};`;
-                                }
-                            }
-                            // Aggiungere logica per altre keyword di Poteri
-                        }
-                    });
-                    if (effettoApplicatoLog) logEvento(stato, `    - Effetti: ${effettoApplicatoLog.trim()}`);
-                    else logEvento(stato, `    - (Effetto Potere non specificamente implementato)`);
-                    // --- FINE APPLICAZIONE EFFETTO ---
-                    attivo.carteScartate.push(carta.cartaDef);
-                    attivo.mano.splice(indiceCarta, 1);
-                    cartaGiocataEUscitaDallaMano = true;
-                    continue;
-                } else {
-                    logEvento(stato, `  > Fallito: Nessun bersaglio valido per ${carta.cartaDef.nome}`);
-                    carta.statoPotere = 'Bloccato';
-                }
-            }
-        }
 
+                    // --- APPLICAZIONE EFFETTO POTERE REALE ---
+                    // Anche qui, logica specifica per ID carta
+                    switch (carta.cartaDef.id) {
+                        case 'fulmine_improvviso': {
+                            const { campoPassivo } = getCampi(stato); // Prendi il campo avversario
+                            const nemiciViviOrdinati = (campoPassivo
+                                .filter(u => u && u.vitaAttuale > 0) as UnitaInGioco[])
+                                .sort((a, b) => a.vitaAttuale - b.vitaAttuale); // Ordina per vita
+
+                            if (nemiciViviOrdinati.length > 0) {
+                                const target = nemiciViviOrdinati[0]; // Prende quello con meno vita
+                                const danno = 3; // Valore dell'effetto
+                                target.vitaAttuale -= danno;
+                                logEvento(stato, `    - Colpisce ${target.cartaDef.nome} per ${danno} danni (HP: ${target.vitaAttuale})`);
+                                // NON serve gestire la morte qui, lo farà la faseMorteEScorrimento
+                            } else {
+                                logEvento(stato, `    - Effetto Fulmine non applicato (nessun nemico vivo trovato).`);
+                            }
+                            break;
+                        }
+                        // case 'altra_carta_potere_id': {
+                        //     // Applica qui l'effetto dell'altro potere...
+                        //     break;
+                        // }
+                        default: {
+                            logEvento(stato, `    - Effetto di ${carta.cartaDef.nome} non implementato!`);
+                            break;
+                        }
+                    }
+                    // --- FINE APPLICAZIONE EFFETTO ---
+
+                    attivo.carteScartate.push(carta.cartaDef); // Il potere usato va nel cimitero
+                    attivo.mano.splice(indiceCarta, 1); // Rimuove la carta dalla mano
+                    cartaGiocataEUscitaDallaMano = true; // Carta rimossa
+
+                    // NON si incrementa indiceCarta
+
+                } else {
+                    // Bersaglio/Condizione non valido/a
+                    logEvento(stato, `  > Fallito: Nessun bersaglio/condizione per ${carta.cartaDef.nome}`);
+                    carta.statoPotere = 'Bloccato'; // Marca per non riprovare in questo turno
+                    // L'indice verrà incrementato sotto
+                }
+            } else {
+                 // Se il tipo non è 'Unita' né 'Potere' (non dovrebbe accadere con i tipi attuali)
+                 console.error(`[ERRORE] Tipo carta sconosciuto incontrato: ${String(carta.cartaDef.tipo)}`);
+                  // L'indice verrà incrementato sotto per evitare loop infiniti
+            }
+        } // Fine if carta.preparazioneAttuale === 0
+
+        // Incrementa l'indice per passare alla carta successiva nella mano
+        // SOLO se la carta all'indice corrente NON è stata rimossa (splice).
         if (!cartaGiocataEUscitaDallaMano) {
             indiceCarta++;
         }
-    }
+        // Altrimenti, il loop while continuerà con lo stesso valore di indiceCarta,
+        // esaminando la prossima carta che è slittata in quella posizione.
+
+    } // Fine while (indiceCarta < attivo.mano.length)
 }
+
+// NON includere qui il resto di engine.ts (altre fasi, funzione principale, etc.)
+// Questo è SOLO il codice della funzione faseGiocoCarte.
 
 function faseAttacco(stato: StatoPartita) {
     stato.faseTurno = "Attacco";
     const { attivo, passivo } = getGiocatori(stato);
     const { campoAttivo, campoPassivo } = getCampi(stato);
     logEvento(stato, `G${attivo.id}: Fase Attacco.`);
-    let attacchiLogGlobal = "";
+    let attacchiLog = "";
 
-    // --- 1. ATTACCO EROE ATTIVO ---
-    for (const kwRisolta of attivo.eroe.keywordEffettive) {
-        if (kwRisolta.triggerBase === "FaseAttacco" && kwRisolta.id === "KW_MISCHIA_EROE" && typeof kwRisolta.valore === 'number' && kwRisolta.tipoDanno) {
-            const targetUnita = campoPassivo.find(u => u && u.hpAttuali > 0);
-            if (targetUnita) {
-                let dannoEffettivo = kwRisolta.valore;
-                // Applica ARMATURA del bersaglio
-                for (const kwDif of targetUnita.keywordEffettive) {
-                    if (kwDif.id === "KW_ARMATURA" && typeof kwDif.valore === 'number' && kwDif.tipoDanno === kwRisolta.tipoDanno) {
-                        dannoEffettivo = Math.max(0, dannoEffettivo - kwDif.valore);
-                    }
-                }
-                targetUnita.hpAttuali -= dannoEffettivo;
-                attacchiLogGlobal += `Eroe(${attivo.eroe.nomeEroe.substring(0,3)}) usa ${kwRisolta.nomeVisualizzato} -> ${targetUnita.cartaDef.nome.substring(0,3)}(${dannoEffettivo}d ${kwRisolta.tipoDanno}, ${targetUnita.hpAttuali}HP); `;
-                // TODO: Trigger "QuandoInfliggeDannoCombattimento"
-            }
-            // Non attacca eroe nemico se non ci sono unità (da regola)
-        }
-        // TODO: Gestire altre keyword offensive dell'eroe
-    }
-
-
-    // --- 2. ATTACCO UNITA' ATTIVE ---
     for (let i = 0; i < MAX_UNITA_CAMPO; i++) {
         const attaccante = campoAttivo[i];
-        if (attaccante && attaccante.hpAttuali > 0) {
-            const statusAccecato = attaccante.keywordTemporanee.find(kw => kw.applicaStatus === "Accecato_Attacco" || kw.applicaStatus === "Accecato");
-            if (statusAccecato) {
-                logEvento(stato, `S${i}:${attaccante.cartaDef.nome.substring(0,3)} è Accecato e salta l'attacco!`);
-                statusAccecato.durata = (statusAccecato.durata ?? 1) - 1;
-                if (statusAccecato.durata <= 0) {
-                    attaccante.keywordTemporanee = attaccante.keywordTemporanee.filter(kwFilt => kwFilt.applicaStatus !== statusAccecato.applicaStatus);
-                }
-                continue;
-            }
+        if (attaccante && attaccante.vitaAttuale > 0) {
+            const bersaglioUnita = campoPassivo[i];
+            let logRiga = `S${i}:${attaccante.cartaDef.nome.substring(0,3)}(${attaccante.vitaAttuale}HP)`;
 
-            for (const kwRisolta of attaccante.keywordEffettive) {
-                if (kwRisolta.triggerBase === "FaseAttacco" && typeof kwRisolta.valore === 'number' && kwRisolta.tipoDanno) {
-                    let logRiga = `S${i}:${attaccante.cartaDef.nome.substring(0,3)}(${attaccante.hpAttuali}HP)`;
-                    let bersaglioEffettivoUnita: UnitaInGioco | null = null;
-                    let bersaglioEffettivoEroe = false;
-
-                    if (kwRisolta.targetBase === "UnitàOpposta") {
-                        bersaglioEffettivoUnita = campoPassivo[i];
-                        if (!bersaglioEffettivoUnita || bersaglioEffettivoUnita.hpAttuali <= 0) {
-                            bersaglioEffettivoUnita = null;
-                            bersaglioEffettivoEroe = true;
-                        }
-                    } else if (kwRisolta.targetBase === "UnitàNemicaConMenoHP") {
-                        const nemiciVivi = campoPassivo.filter(u => u && u.hpAttuali > 0) as UnitaInGioco[];
-                        if (nemiciVivi.length > 0) {
-                            nemiciVivi.sort((a,b) => a.hpAttuali - b.hpAttuali);
-                            bersaglioEffettivoUnita = nemiciVivi[0];
-                        } else { bersaglioEffettivoEroe = true; }
-                    }
-                    // TODO: Implementare altri target per KW offensive Unità
-
-                    let dannoFinale = kwRisolta.valore;
-                    if (bersaglioEffettivoUnita && bersaglioEffettivoUnita.hpAttuali > 0) {
-                        for (const kwDif of bersaglioEffettivoUnita.keywordEffettive) { // Controlla ARMATURA del bersaglio
-                            if (kwDif.id === "KW_ARMATURA" && typeof kwDif.valore === 'number' && kwDif.tipoDanno === kwRisolta.tipoDanno) {
-                                dannoFinale = Math.max(0, dannoFinale - kwDif.valore);
-                            }
-                        }
-                        bersaglioEffettivoUnita.hpAttuali -= dannoFinale;
-                        logRiga += ` usa ${kwRisolta.nomeVisualizzato} -> ${bersaglioEffettivoUnita.cartaDef.nome.substring(0,3)}(${dannoFinale}d ${kwRisolta.tipoDanno}, ${bersaglioEffettivoUnita.hpAttuali}HP); `;
-                        attacchiLogGlobal += logRiga;
-                    } else if (bersaglioEffettivoEroe) {
-                        for (const kwDif of passivo.eroe.keywordEffettive) { // Controlla ARMATURA dell'eroe bersaglio
-                            if (kwDif.id === "KW_ARMATURA" && typeof kwDif.valore === 'number' && kwDif.tipoDanno === kwRisolta.tipoDanno) {
-                                dannoFinale = Math.max(0, dannoFinale - kwDif.valore);
-                            }
-                        }
-                        passivo.eroe.hpAttuali -= dannoFinale;
-                        logRiga += ` usa ${kwRisolta.nomeVisualizzato} -> EROE(${dannoFinale}d ${kwRisolta.tipoDanno}, ${passivo.eroe.hpAttuali}HP); `;
-                        attacchiLogGlobal += logRiga;
-                    } else {
-                         logRiga += ` usa ${kwRisolta.nomeVisualizzato} -> NESSUN BERSAGLIO; `;
-                         attacchiLogGlobal += logRiga;
-                    }
-
-                    if (passivo.eroe.hpAttuali <= 0 && !stato.gameOver) {
-                        stato.gameOver = true;
-                        stato.vincitore = attivo.id;
-                        logEvento(stato, `- Attacchi: ${attacchiLogGlobal.trim()}`);
-                        logEvento(stato, `!!! EROE G${passivo.id} SCONFITTO! G${attivo.id} VINCE !!!`);
-                        return;
-                    }
-                    // Gestione keyword che applicano status come parte dell'attacco
-                    if (kwRisolta.applicaStatus && kwRisolta.targetBase === "UnitàOpposta") { /* ... come prima ... */ }
-                     if (stato.gameOver) return;
+            if (bersaglioUnita && bersaglioUnita.vitaAttuale > 0) {
+                const danno = attaccante.attaccoAttuale;
+                bersaglioUnita.vitaAttuale -= danno;
+                 logRiga += ` -> ${bersaglioUnita.cartaDef.nome.substring(0,3)}(${danno}d, ${bersaglioUnita.vitaAttuale}HP); `;
+                attacchiLog += logRiga;
+            } else {
+                const danno = attaccante.attaccoAttuale;
+                passivo.eroe.hpAttuali -= danno;
+                logRiga += ` -> EROE(${danno}d, ${passivo.eroe.hpAttuali}HP); `;
+                attacchiLog += logRiga;
+                if (passivo.eroe.hpAttuali <= 0 && !stato.gameOver) {
+                    stato.gameOver = true;
+                    stato.vincitore = attivo.id;
+                    logEvento(stato, `- Attacchi fino a sconfitta: ${attacchiLog}`);
+                    logEvento(stato, `!!! EROE G${passivo.id} SCONFITTO! G${attivo.id} VINCE !!!`);
+                    return;
                 }
             }
         }
     }
-    if (attacchiLogGlobal) logEvento(stato, `- Attacchi: ${attacchiLogGlobal.trim()}`);
+    if (attacchiLog) logEvento(stato, `- Attacchi: ${attacchiLog.trim()}`);
 }
 
 function faseMorteEScorrimento(stato: StatoPartita) {
@@ -390,14 +313,10 @@ function faseMorteEScorrimento(stato: StatoPartita) {
              ricontrollaQuestoCampo = false;
              for (let i = 0; i < MAX_UNITA_CAMPO; i++) {
                  const unita = campo[i];
-                 if (unita && unita.hpAttuali <= 0) {
+                 if (unita && unita.vitaAttuale <= 0) {
                      siSonoVerificateMorti = true;
                      logMortiGiocatore += `${unita.cartaDef.nome.substring(0,10)}@S${i} `;
-                     for (const kwRisolta of unita.keywordEffettive) {
-                         if (kwRisolta.triggerBase === "QuandoMuore") {
-                             logEvento(stato, `  * ${unita.cartaDef.nome} attiva OnDeath '${kwRisolta.nomeVisualizzato}' (TODO: Effetto!)`);
-                         }
-                     }
+                     // TODO: Attivare OnDeath effetti qui
                      giocatore.carteScartate.push(unita.cartaDef);
                      campo[i] = null;
                      for (let j = i + 1; j < MAX_UNITA_CAMPO; j++) {
@@ -421,11 +340,18 @@ function faseMorteEScorrimento(stato: StatoPartita) {
     }
 
      if (!stato.gameOver) {
-        const g1HP = stato.giocatori[0].eroe.hpAttuali;
-        const g2HP = stato.giocatori[1].eroe.hpAttuali;
-        if (g1HP <= 0 && g2HP <= 0) { /* ... */ }
-        else if (g1HP <= 0) { /* ... */ }
-        else if (g2HP <= 0) { /* ... */ }
+        const hpG1 = stato.giocatori[0].eroe.hpAttuali;
+        const hpG2 = stato.giocatori[1].eroe.hpAttuali;
+        if (hpG1 <= 0 && hpG2 <= 0) {
+            stato.gameOver = true; stato.vincitore = null;
+            logEvento(stato, `!!! ENTRAMBI GLI EROI SCONFITTI (post-morte)! PAREGGIO? !!!`);
+        } else if (hpG1 <= 0) {
+           stato.gameOver = true; stato.vincitore = 2;
+           logEvento(stato, `!!! EROE G1 SCONFITTO (post-morte)! G2 VINCE !!!`);
+        } else if (hpG2 <= 0) {
+           stato.gameOver = true; stato.vincitore = 1;
+           logEvento(stato, `!!! EROE G2 SCONFITTO (post-morte)! G1 VINCE !!!`);
+        }
      }
 }
 
@@ -433,132 +359,92 @@ function faseMorteEScorrimento(stato: StatoPartita) {
 function faseFineTurno(stato: StatoPartita) {
     stato.faseTurno = "FineTurno";
     const { attivo } = getGiocatori(stato);
-
-    const entitaDaProcessareDelGiocatoreAttivo = [
-        attivo.eroe,
-        ...(attivo.id === 1 ? stato.campoG1 : stato.campoG2).filter(u => u !== null) as (EroeInGioco | UnitaInGioco)[]
-    ];
-    entitaDaProcessareDelGiocatoreAttivo.forEach(entita => {
-        if (entita.keywordTemporanee && entita.keywordTemporanee.length > 0) {
-            entita.keywordTemporanee = entita.keywordTemporanee.filter(kwApp => {
-                if (kwApp.durata !== undefined && kwApp.durata !== null) {
-                    const nuovaDurata = kwApp.durata -1;
-                    if (nuovaDurata > 0) {
-                        logEvento(stato, `  * Status '${kwApp.applicaStatus ?? kwApp.keywordId}' su ${('nomeEroe' in entita ? entita.nomeEroe : entita.cartaDef.nome)} dura ancora ${nuovaDurata} turni.`);
-                        kwApp.durata = nuovaDurata;
-                        return true;
-                    } else {
-                        logEvento(stato, `  * Status '${kwApp.applicaStatus ?? kwApp.keywordId}' su ${('nomeEroe' in entita ? entita.nomeEroe : entita.cartaDef.nome)} è scaduto.`);
-                        return false;
-                    }
-                }
-                return false;
-            });
+    if (attivo.mano.length > MAX_CARTE_MANO) {
+        logEvento(stato, `G${attivo.id}: Mano piena (${attivo.mano.length} > ${MAX_CARTE_MANO}), scarto...`);
+        const manoConIndice = attivo.mano.map((carta, index) => ({ carta, index }));
+        manoConIndice.sort((a, b) => {
+            if (b.carta.preparazioneAttuale !== a.carta.preparazioneAttuale) { return b.carta.preparazioneAttuale - a.carta.preparazioneAttuale; }
+            return b.index - a.index;
+        });
+        const numeroCarteDaScartare = attivo.mano.length - MAX_CARTE_MANO;
+        const idUniciDaScartare = new Set<number>();
+        let logScarto = "";
+        for (let i = 0; i < numeroCarteDaScartare; i++) {
+            const { carta } = manoConIndice[i];
+            logScarto += `${carta.cartaDef.nome.substring(0,10)}(P${carta.preparazioneAttuale}) `;
+            attivo.carteScartate.push(carta.cartaDef);
+            idUniciDaScartare.add(carta.idIstanzaUnica);
         }
-        // TODO: Logica per trigger "FineTurnoGiocatore" (es. KW_GUARIGIONE, KW_BOMBARDAMENTO)
-        // Dovrebbe iterare su keywordEffettive dell'entità.
-    });
-
-
-    if (attivo.mano.length > MAX_CARTE_MANO) { /* ... scarto come prima ... */ }
-    attivo.mano.forEach(carta => { if (carta.statoPotere === 'Bloccato') delete carta.statoPotere; });
+        if(logScarto) logEvento(stato, ` > Scarta: ${logScarto.trim()}`);
+        attivo.mano = attivo.mano.filter(c => !idUniciDaScartare.has(c.idIstanzaUnica));
+    }
+     attivo.mano.forEach(carta => { if (carta.statoPotere === 'Bloccato') delete carta.statoPotere; });
     logEvento(stato, `Fine Turno G${attivo.id}. Mano: ${attivo.mano.length}`);
 }
 
 // --- Funzione Principale di Simulazione ---
 export function avviaSimulazioneCompleta(params: SimulationParams): StatoPartita {
-    const {
-        mazzoDefG1, mazzoDefG2,
-        eroeBaseG1, livelloEroeG1, equipEroeG1 = [],
-        eroeBaseG2, livelloEroeG2, equipEroeG2 = [],
-        pozioneG1, pozioneG2, scenario
-    } = params;
+    const { mazzoDefG1, mazzoDefG2, hpInizialiEroe = HP_EROE_DEFAULT } = params;
 
-    if (!mazzoDefG1 || !mazzoDefG2 || !eroeBaseG1 || !eroeBaseG2) {
-         const errorLog = "Errore: Dati di input per la simulazione mancanti (mazzi/eroi).";
-         return { turnoAttuale: 0, idGiocatoreAttivo: 1, faseTurno: "ErroreSetup", giocatori: [ { id: 1, eroe: {} as EroeInGioco, mano: [], mazzoRimanente: [], carteScartate: [], contatoreFatica: 0 }, { id: 2, eroe: {} as EroeInGioco, mano: [], mazzoRimanente: [], carteScartate: [], contatoreFatica: 0 }], campoG1: [], campoG2: [], eventiLog: [errorLog], gameOver: true, vincitore: null, prossimoIdIstanzaUnica: 1, primoTurnoP1Saltato: false } as StatoPartita;
+    if (!mazzoDefG1 || mazzoDefG1.length === 0 || !mazzoDefG2 || mazzoDefG2.length === 0) {
+         const errorLog = "Errore: Impossibile avviare la simulazione, mazzi non validi o vuoti.";
+         return {
+             turnoAttuale: 0, idGiocatoreAttivo: 1, faseTurno: "ErroreSetup",
+             giocatori: [ { id: 1, eroe: { idGiocatore: 1, hpAttuali: 0, hpMax: hpInizialiEroe}, mano: [], mazzoRimanente: [], carteScartate: [], contatoreFatica: 0 }, { id: 2, eroe: { idGiocatore: 2, hpAttuali: 0, hpMax: hpInizialiEroe}, mano: [], mazzoRimanente: [], carteScartate: [], contatoreFatica: 0 } ],
+             campoG1: Array(MAX_UNITA_CAMPO).fill(null), campoG2: Array(MAX_UNITA_CAMPO).fill(null),
+             eventiLog: [errorLog], gameOver: true, vincitore: null, prossimoIdIstanzaUnica: 1, primoTurnoP1Saltato: false
+         } as StatoPartita; // Aggiunto type assertion per sicurezza
     }
 
-    const inizializzaEroe = (idGiocatore: number, defEroe: CartaDef, livello: number, defsEquip: CartaDef[]): EroeInGioco => {
-        const keywordBaseEroeRisolte = defEroe.abilitaKeywords.map(risolviKeyword);
-        const keywordDaEquipRisolte: (LibreriaKeywordEntry & KeywordApplicata)[] = [];
-        const equipIndossato: EroeInGioco['equipIndossato'] = {};
-
-        defsEquip.forEach(eqDef => {
-            if (eqDef.tipo === 'Equipaggiamento' && eqDef.slotEquipaggiamento) {
-                const slot = eqDef.slotEquipaggiamento;
-                if (slot === "ArmaPrincipale" || slot === "ArmaSecondaria" || slot === "Armatura" || slot === "Elmo" || slot === "Amuleto") {
-                    if (!equipIndossato[slot]) {
-                        equipIndossato[slot] = eqDef;
-                        eqDef.abilitaKeywords.forEach(kwAppEquip => keywordDaEquipRisolte.push(risolviKeyword(kwAppEquip)));
-                    }
-                }
-            }
-        });
-
-        const keywordEffettiveCalcolo = [...keywordBaseEroeRisolte, ...keywordDaEquipRisolte];
-        let hpMassimi = 0;
-        let comandoMassimo = defEroe.comandoBase ?? 20;
-
-        keywordEffettiveCalcolo.forEach(kw => {
-            if (kw.id === "KW_PUNTI_FERITA_INIZIALI" && typeof kw.valore === 'number') {
-                hpMassimi += kw.valore;
-            }
-            if (kw.id === "KW_COMANDO_BASE" && typeof kw.valore === 'number' && defEroe.tipo === 'EroeBase') {
-                 comandoMassimo = kw.valore; // Assume che KW_COMANDO_BASE sull'eroe imposti il valore, non lo sommi
-            }
-        });
-        if (hpMassimi === 0) hpMassimi = HP_EROE_DEFAULT;
-
-        return {
-            idGiocatore, idDefEroe: defEroe.id, nomeEroe: defEroe.nome, livello,
-            hpAttuali: hpMassimi, hpMax: hpMassimi, comandoMax: comandoMassimo,
-            keywordEffettive: keywordEffettiveCalcolo,
-            keywordBaseEroeDef: defEroe.abilitaKeywords, // Per riferimento
-            keywordDaEquipDef: defsEquip.flatMap(eq => eq.abilitaKeywords), // Per riferimento
-            keywordTemporanee: [],
-            equipIndossato,
-            affiliazioniEffettive: [...(defEroe.affiliazioni || [])],
-        };
-    };
-
     const statoIniziale: StatoPartita = {
-        turnoAttuale: 0, idGiocatoreAttivo: Math.random() < 0.5 ? 1 : 2, faseTurno: "InizioPartita",
+        turnoAttuale: 0,
+        idGiocatoreAttivo: Math.random() < 0.5 ? 1 : 2,
+        faseTurno: "InizioPartita",
         giocatori: [
-            { id: 1, eroe: inizializzaEroe(1, eroeBaseG1, livelloEroeG1, equipEroeG1), mano: [], mazzoRimanente: shuffleArray([...mazzoDefG1.filter(c => c.tipo === 'Unità' || c.tipo === 'Potere')]), carteScartate: [], contatoreFatica: 0, pozioneEquipaggiata: pozioneG1 },
-            { id: 2, eroe: inizializzaEroe(2, eroeBaseG2, livelloEroeG2, equipEroeG2), mano: [], mazzoRimanente: shuffleArray([...mazzoDefG2.filter(c => c.tipo === 'Unità' || c.tipo === 'Potere')]), carteScartate: [], contatoreFatica: 0, pozioneEquipaggiata: pozioneG2 }
+            { id: 1, eroe: { idGiocatore: 1, hpAttuali: hpInizialiEroe, hpMax: hpInizialiEroe }, mano: [], mazzoRimanente: shuffleArray([...mazzoDefG1]), carteScartate: [], contatoreFatica: 0 },
+            { id: 2, eroe: { idGiocatore: 2, hpAttuali: hpInizialiEroe, hpMax: hpInizialiEroe }, mano: [], mazzoRimanente: shuffleArray([...mazzoDefG2]), carteScartate: [], contatoreFatica: 0 }
         ],
-        campoG1: Array(MAX_UNITA_CAMPO).fill(null), campoG2: Array(MAX_UNITA_CAMPO).fill(null),
-        scenarioAttivo: scenario, eventiLog: [`--- Partita Iniziata ---`],
+        campoG1: Array(MAX_UNITA_CAMPO).fill(null),
+        campoG2: Array(MAX_UNITA_CAMPO).fill(null),
+        eventiLog: [`--- Partita Iniziata (HP Eroi: ${hpInizialiEroe}) ---`],
         gameOver: false, vincitore: null, prossimoIdIstanzaUnica: 1, primoTurnoP1Saltato: false,
     };
-    logEvento(statoIniziale, `Eroe G1: ${statoIniziale.giocatori[0].eroe.nomeEroe} (HP: ${statoIniziale.giocatori[0].eroe.hpMax}, Comando: ${statoIniziale.giocatori[0].eroe.comandoMax})`);
-    logEvento(statoIniziale, `Eroe G2: ${statoIniziale.giocatori[1].eroe.nomeEroe} (HP: ${statoIniziale.giocatori[1].eroe.hpMax}, Comando: ${statoIniziale.giocatori[1].eroe.comandoMax})`);
-    if (scenario) { logEvento(statoIniziale, `Scenario Attivo: ${scenario.nome}`); }
     logEvento(statoIniziale, `Giocatore ${statoIniziale.idGiocatoreAttivo} inizia.`);
 
     let stato: StatoPartita;
     try { stato = JSON.parse(JSON.stringify(statoIniziale)); }
-    catch(e) { console.error("Errore clonazione stato:", e); return statoIniziale; }
+    catch(e) { console.error("Errore clonazione stato:", e); return statoIniziale; } // Usa statoIniziale con errore
 
-    logEvento(stato, `Sistema: Fase Inizio Battaglia.`);
-    // TODO: Logica trigger "InizioBattaglia" da Eroi, Equip, Scenario, Pozioni
-    // ...
+    logEvento(stato, `Sistema: Fase Inizio Battaglia (TODO)`);
 
     while (!stato.gameOver && stato.turnoAttuale < MAX_TURNI) {
         stato.turnoAttuale++;
+
         faseInizioTurno(stato);
         fasePesca(stato);               if (stato.gameOver) break;
         fasePreparazione(stato);
         faseGiocoCarte(stato);
-        // TODO: Logica Pozioni (se si attivano qui)
         faseAttacco(stato);             if (stato.gameOver) break;
         faseMorteEScorrimento(stato);   if (stato.gameOver) break;
         faseFineTurno(stato);
+
         if (!stato.gameOver) { stato.idGiocatoreAttivo = stato.idGiocatoreAttivo === 1 ? 2 : 1; }
     }
 
-    if (!stato.gameOver && stato.turnoAttuale >= MAX_TURNI) { /* ... gestione limite turni ... */ }
+    if (!stato.gameOver && stato.turnoAttuale >= MAX_TURNI) {
+        stato.gameOver = true;
+        logEvento(stato, `!!! Limite Turni (${MAX_TURNI}) Raggiunto!`);
+        const hpG1 = stato.giocatori.find(g => g.id === 1)!.eroe.hpAttuali;
+        const hpG2 = stato.giocatori.find(g => g.id === 2)!.eroe.hpAttuali;
+        if (hpG1 > hpG2) { stato.vincitore = 1; }
+        else if (hpG2 > hpG1) { stato.vincitore = 2; }
+        else { stato.vincitore = null; }
+        logEvento(stato, `Vincitore per HP: ${stato.vincitore !== null ? `Giocatore ${stato.vincitore}` : 'Pareggio'}`);
+    } else if (!stato.gameOver) { // Caso limite uscita anomala
+        logEvento(stato, `Attenzione: Uscita dal loop anomala. Turno: ${stato.turnoAttuale}`);
+        stato.gameOver = true; stato.vincitore = null; // Pareggio per sicurezza
+    }
+
     logEvento(stato, `--- PARTITA TERMINATA --- ${stato.vincitore !== null ? `VINCITORE: Giocatore ${stato.vincitore}` : 'PAREGGIO'}`);
     return stato;
 }
